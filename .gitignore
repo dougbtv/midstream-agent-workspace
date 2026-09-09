@@ -1,0 +1,36 @@
+# Independently managed repositories and their shared backing clones.
+/repos/*
+!/repos/README.md
+
+# Local and disposable workspace state.
+/scratch/*
+!/scratch/README.md
+/.workspace/
+/.cache/
+/.tmp/
+*.log
+*.tmp
+*.swp
+*~
+
+# Secrets and environment-specific credentials.
+.env
+.env.*
+!.env.example
+secrets
+secrets.*
+*.pem
+*.key
+*.p12
+*.token
+
+# Common generated artifacts.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+node_modules/
+dist/
+build/

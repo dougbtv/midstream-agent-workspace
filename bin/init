@@ -1,0 +1,212 @@
+#!/usr/bin/env python3
+"""Create the Git worktrees declared by workspace.toml."""
+
+from __future__ import annotations
+
+import argparse
+import os
+from pathlib import Path
+import shlex
+import subprocess
+import sys
+
+try:
+    import tomllib
+except ModuleNotFoundError:
+    sys.exit("bin/init requires Python 3.11 or newer (tomllib is unavailable)")
+
+
+ROOT = Path(__file__).resolve().parent.parent
+MANIFEST = ROOT / "workspace.toml"
+SOURCE_CACHE = ROOT / "repos" / ".sources"
+
+
+def command(*args: str, dry_run: bool = False) -> bool:
+    print(f"  $ {shlex.join(args)}")
+    if dry_run:
+        return True
+    try:
+        subprocess.run(args, check=True)
+        return True
+    except subprocess.CalledProcessError as error:
+        print(f"  error: command exited {error.returncode}", file=sys.stderr)
+        return False
+
+
+def git_output(repo: Path, *args: str) -> str | None:
+    result = subprocess.run(
+        ("git", "-C", os.fspath(repo), *args),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def canonical_url(url: str) -> str:
+    value = url.strip().removesuffix("/").removesuffix(".git")
+    if value.startswith("git@") and ":" in value:
+        host, path = value[4:].split(":", 1)
+        return f"{host}/{path}".lower()
+    for prefix in ("https://", "http://", "ssh://git@"):
+        if value.startswith(prefix):
+            return value.removeprefix(prefix).replace(":", "/", 1).lower()
+    return value.lower()
+
+
+def matching_remote(repo: Path, expected_url: str) -> str | None:
+    remotes = git_output(repo, "remote")
+    if remotes is None:
+        return None
+    expected = canonical_url(expected_url)
+    for remote in remotes.splitlines():
+        actual = git_output(repo, "remote", "get-url", remote)
+        if actual and canonical_url(actual) == expected:
+            return remote
+    return None
+
+
+def is_repository(path: Path) -> bool:
+    return git_output(path, "rev-parse", "--git-dir") is not None
+
+
+def bootstrap_ref(repo: Path, remote: str) -> str | None:
+    for ref in (f"{remote}/HEAD", "HEAD"):
+        if git_output(repo, "rev-parse", "--verify", f"{ref}^{{commit}}"):
+            return ref
+    return None
+
+
+def safe_attachment_path(value: str) -> Path:
+    relative = Path(value)
+    if relative.is_absolute() or ".." in relative.parts:
+        raise ValueError(f"attachment path must be relative and contained: {value}")
+    resolved = (ROOT / relative).resolve()
+    repos_root = (ROOT / "repos").resolve()
+    if resolved == repos_root or repos_root not in resolved.parents:
+        raise ValueError(f"attachment path must be below repos/: {value}")
+    return resolved
+
+
+def load_manifest() -> tuple[dict[str, dict], list[dict]]:
+    with MANIFEST.open("rb") as handle:
+        data = tomllib.load(handle)
+    if data.get("version") != 1:
+        raise ValueError("unsupported workspace.toml version")
+    sources = {source["id"]: source for source in data.get("sources", [])}
+    attachments = data.get("attachments", [])
+    for attachment in attachments:
+        if attachment["source"] not in sources:
+            raise ValueError(f"unknown source: {attachment['source']}")
+        safe_attachment_path(attachment["path"])
+    return sources, attachments
+
+
+def select_source(
+    source: dict, source_root: Path | None, dry_run: bool
+) -> tuple[Path, str] | None:
+    if source_root:
+        candidate = source_root / source["local_name"]
+        remote = matching_remote(candidate, source["url"])
+        if is_repository(candidate) and remote:
+            print(f"  reuse {candidate}")
+            return candidate, remote
+        if candidate.exists():
+            print(f"  note: not adopting incompatible {candidate}")
+
+    cached = SOURCE_CACHE / source["local_name"]
+    if cached.exists():
+        if not is_repository(cached):
+            print(f"  error: source cache is not a Git repository: {cached}", file=sys.stderr)
+            return None
+        remote = matching_remote(cached, source["url"])
+        if not remote:
+            print(f"  error: source cache has an unexpected remote: {cached}", file=sys.stderr)
+            return None
+        print(f"  reuse {cached.relative_to(ROOT)}")
+        return cached, remote
+
+    print(f"  clone {source['url']} -> {cached.relative_to(ROOT)}")
+    if dry_run:
+        command("git", "clone", source["url"], os.fspath(cached), dry_run=True)
+        return cached, "origin"
+    cached.parent.mkdir(parents=True, exist_ok=True)
+    if not command("git", "clone", source["url"], os.fspath(cached)):
+        return None
+    return cached, "origin"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dry-run", action="store_true", help="print without changing anything")
+    parser.add_argument(
+        "--source-root",
+        type=Path,
+        help="reuse matching backing repositories immediately below this directory",
+    )
+    args = parser.parse_args()
+
+    try:
+        sources, attachments = load_manifest()
+    except (OSError, KeyError, TypeError, ValueError, tomllib.TOMLDecodeError) as error:
+        print(f"manifest error: {error}", file=sys.stderr)
+        return 2
+
+    print("midstream workspace init")
+    if args.dry_run:
+        print("dry run; no files will be changed")
+
+    selected: dict[str, tuple[Path, str] | None] = {}
+    failures = 0
+
+    for attachment in attachments:
+        source = sources[attachment["source"]]
+        target = safe_attachment_path(attachment["path"])
+        print(f"\n{attachment['group']}/{target.name} — {attachment['name']}")
+
+        if target.exists():
+            if is_repository(target) and matching_remote(target, source["url"]):
+                print("  present; leave unchanged")
+                continue
+            print(f"  error: refusing to replace existing path: {target}", file=sys.stderr)
+            failures += 1
+            continue
+
+        source_id = source["id"]
+        if source_id not in selected:
+            selected[source_id] = select_source(source, args.source_root, args.dry_run)
+        selected_source = selected[source_id]
+        if selected_source is None:
+            failures += 1
+            continue
+        backing, remote = selected_source
+
+        ref = f"{remote}/HEAD" if args.dry_run and not backing.exists() else bootstrap_ref(backing, remote)
+        if not ref:
+            print(f"  error: no bootstrap commit found in {backing}", file=sys.stderr)
+            failures += 1
+            continue
+
+        print(f"  attach {target.relative_to(ROOT)} at {ref} (detached)")
+        if not args.dry_run:
+            target.parent.mkdir(parents=True, exist_ok=True)
+        if not command(
+            "git",
+            "-C",
+            os.fspath(backing),
+            "worktree",
+            "add",
+            "--detach",
+            os.fspath(target),
+            ref,
+            dry_run=args.dry_run,
+        ):
+            failures += 1
+
+    outcome = "planned or already present" if args.dry_run else "ready"
+    print(f"\ncomplete: {len(attachments) - failures} {outcome}, {failures} failed")
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

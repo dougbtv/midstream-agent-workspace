@@ -1,0 +1,245 @@
+version = 1
+
+# A source is one independently versioned repository. Attachments below may
+# create more than one worktree from a source when product work needs separate
+# branches at the same time.
+
+[[sources]]
+id = "nm-vllm-ent"
+local_name = "nm-vllm-ent"
+url = "git@github.com:neuralmagic/nm-vllm-ent.git"
+
+[[sources]]
+id = "nm-cicd"
+local_name = "nm-cicd"
+url = "git@github.com:neuralmagic/nm-cicd.git"
+
+[[sources]]
+id = "ci-infra"
+local_name = "ci-infra"
+url = "git@github.com:vllm-project/ci-infra.git"
+
+[[sources]]
+id = "vllm-dashboard"
+local_name = "vllm-dashboard"
+url = "git@github.com:vllm-project/vllm-dashboard.git"
+
+[[sources]]
+id = "perf-eval"
+local_name = "perf-eval"
+url = "git@github.com:vllm-project/perf-eval.git"
+
+[[sources]]
+id = "model-validation-configs"
+local_name = "model-validation-configs"
+url = "git@github.com:neuralmagic/model-validation-configs.git"
+
+[[sources]]
+id = "vllm-gaudi"
+local_name = "vllm-gaudi"
+url = "git@github.com:vllm-project/vllm-gaudi.git"
+
+[[sources]]
+id = "vllm-omni"
+local_name = "vllm-omni"
+url = "git@github.com:dougbtv/vllm-omni.git"
+
+[[sources]]
+id = "nm-vllm-omni-ent"
+local_name = "nm-vllm-omni-ent"
+url = "git@github.com:neuralmagic/nm-vllm-omni-ent.git"
+
+[[sources]]
+id = "diffusers"
+local_name = "diffusers"
+url = "https://github.com/huggingface/diffusers.git"
+
+[[sources]]
+id = "rhaiis-pipeline"
+local_name = "pipeline"
+url = "https://gitlab.com/redhat/rhel-ai/rhaiis/pipeline.git"
+
+[[sources]]
+id = "rhaiis-containers"
+local_name = "containers"
+url = "https://gitlab.com/redhat/rhel-ai/rhaiis/containers.git"
+
+[[sources]]
+id = "app-interface"
+local_name = "app-interface"
+url = "https://gitlab.cee.redhat.com/service/app-interface.git"
+
+[[sources]]
+id = "vllm-documentation"
+local_name = "vllm-documentation"
+url = "git@gitlab.cee.redhat.com:documentation-red-hat-openshift-data-science-documentation/vllm-documentation.git"
+
+[[sources]]
+id = "rel-eng-faq"
+local_name = "rel-eng-faq"
+url = "git@github.com:neuralmagic/rel-eng-faq.git"
+
+[[sources]]
+id = "rhaiis-midstream-snippets"
+local_name = "rhaiis-midstream-snippets"
+url = "git@github.com:neuralmagic/rhaiis-midstream-snippets.git"
+
+[[sources]]
+id = "dougbtv-redhat-notes"
+local_name = "dougbtv-redhat-notes"
+url = "git@github.com:dougbtv/dougbtv-redhat-notes.git"
+
+[[sources]]
+id = "stratus"
+local_name = "stratus"
+url = "git@github.com:neuralmagic/stratus.git"
+
+[[sources]]
+id = "nm-actions"
+local_name = "nm-actions"
+url = "git@github.com:neuralmagic/nm-actions.git"
+
+[[sources]]
+id = "aicheat"
+local_name = "aicheat"
+url = "https://git.decapod.one/brethil/aicheat"
+
+# Product and supporting attachments. Paths are relative to this workspace.
+
+[[attachments]]
+group = "vllm"
+name = "midstream engine"
+source = "nm-vllm-ent"
+path = "repos/vllm/nm-vllm-ent"
+
+[[attachments]]
+group = "vllm"
+name = "midstream automation"
+source = "nm-cicd"
+path = "repos/vllm/nm-cicd"
+
+[[attachments]]
+group = "vllm"
+name = "upstream CI infrastructure"
+source = "ci-infra"
+path = "repos/vllm/ci-infra"
+
+[[attachments]]
+group = "vllm"
+name = "dashboard"
+source = "vllm-dashboard"
+path = "repos/vllm/vllm-dashboard"
+
+[[attachments]]
+group = "vllm"
+name = "performance and evaluation"
+source = "perf-eval"
+path = "repos/vllm/perf-eval"
+
+[[attachments]]
+group = "vllm"
+name = "model validation configurations"
+source = "model-validation-configs"
+path = "repos/vllm/model-validation-configs"
+
+[[attachments]]
+group = "vllm"
+name = "Gaudi integration"
+source = "vllm-gaudi"
+path = "repos/vllm/vllm-gaudi"
+
+[[attachments]]
+group = "vllm-omni"
+name = "upstream and fork work"
+source = "vllm-omni"
+path = "repos/vllm-omni/vllm-omni"
+
+[[attachments]]
+group = "vllm-omni"
+name = "midstream engine"
+source = "nm-vllm-omni-ent"
+path = "repos/vllm-omni/nm-vllm-omni-ent"
+
+[[attachments]]
+group = "vllm-omni"
+name = "vLLM dependency"
+source = "nm-vllm-ent"
+path = "repos/vllm-omni/nm-vllm-ent"
+
+[[attachments]]
+group = "vllm-omni"
+name = "midstream automation"
+source = "nm-cicd"
+path = "repos/vllm-omni/nm-cicd"
+
+[[attachments]]
+group = "vllm-omni"
+name = "upstream CI infrastructure"
+source = "ci-infra"
+path = "repos/vllm-omni/ci-infra"
+
+[[attachments]]
+group = "vllm-omni"
+name = "Diffusers reference"
+source = "diffusers"
+path = "repos/vllm-omni/diffusers"
+
+[[attachments]]
+group = "aipcc"
+name = "RHAIIS pipeline"
+source = "rhaiis-pipeline"
+path = "repos/aipcc/pipeline"
+
+[[attachments]]
+group = "aipcc"
+name = "RHAIIS containers"
+source = "rhaiis-containers"
+path = "repos/aipcc/containers"
+
+[[attachments]]
+group = "aipcc"
+name = "application configuration"
+source = "app-interface"
+path = "repos/aipcc/app-interface"
+
+[[attachments]]
+group = "docs"
+name = "vLLM product documentation"
+source = "vllm-documentation"
+path = "repos/docs/vllm-documentation"
+
+[[attachments]]
+group = "docs"
+name = "release engineering FAQ"
+source = "rel-eng-faq"
+path = "repos/docs/rel-eng-faq"
+
+[[attachments]]
+group = "docs"
+name = "midstream shared snippets"
+source = "rhaiis-midstream-snippets"
+path = "repos/docs/rhaiis-midstream-snippets"
+
+[[attachments]]
+group = "docs"
+name = "Doug's Red Hat notes"
+source = "dougbtv-redhat-notes"
+path = "repos/docs/dougbtv-redhat-notes"
+
+[[attachments]]
+group = "infra"
+name = "runner and cloud infrastructure"
+source = "stratus"
+path = "repos/infra/stratus"
+
+[[attachments]]
+group = "infra"
+name = "shared GitHub Actions"
+source = "nm-actions"
+path = "repos/infra/nm-actions"
+
+[[attachments]]
+group = "tools"
+name = "agent utility"
+source = "aicheat"
+path = "repos/tools/aicheat"
