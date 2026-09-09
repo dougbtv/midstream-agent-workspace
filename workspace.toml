@@ -65,16 +65,6 @@ local_name = "containers"
 url = "https://gitlab.com/redhat/rhel-ai/rhaiis/containers.git"
 
 [[sources]]
-id = "app-interface"
-local_name = "app-interface"
-url = "https://gitlab.cee.redhat.com/service/app-interface.git"
-
-[[sources]]
-id = "vllm-documentation"
-local_name = "vllm-documentation"
-url = "git@gitlab.cee.redhat.com:documentation-red-hat-openshift-data-science-documentation/vllm-documentation.git"
-
-[[sources]]
 id = "rel-eng-faq"
 local_name = "rel-eng-faq"
 url = "git@github.com:neuralmagic/rel-eng-faq.git"
@@ -195,18 +185,6 @@ group = "aipcc"
 name = "RHAIIS containers"
 source = "rhaiis-containers"
 path = "repos/aipcc/containers"
-
-[[attachments]]
-group = "aipcc"
-name = "application configuration"
-source = "app-interface"
-path = "repos/aipcc/app-interface"
-
-[[attachments]]
-group = "docs"
-name = "vLLM product documentation"
-source = "vllm-documentation"
-path = "repos/docs/vllm-documentation"
 
 [[attachments]]
 group = "docs"

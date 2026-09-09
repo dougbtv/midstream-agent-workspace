@@ -8,7 +8,6 @@ the product pipeline assembles and promotes the resulting images.
 
 - `repos/aipcc/pipeline`: RHAIIS pipeline definitions
 - `repos/aipcc/containers`: product container definitions
-- `repos/aipcc/app-interface`: downstream application configuration
 
 The detailed vLLM-Omni architecture and current-state material remains under
 `projects/vllm-omni/` because it is primarily product-delivery context for that

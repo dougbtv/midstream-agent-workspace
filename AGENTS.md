@@ -57,9 +57,9 @@ before acting.
   model validation, and Gaudi integration
 - `vllm-omni`: upstream/fork work, midstream engine, vLLM dependency, build
   automation, CI, and Diffusers reference
-- `aipcc`: downstream RHAIIS pipeline, containers, and application configuration
-- `docs`: product documentation, release-engineering references, shared snippets,
-  and Doug's notes repository
+- `aipcc`: downstream RHAIIS pipeline and containers
+- `docs`: release-engineering references, shared snippets, and Doug's notes
+  repository
 - `infra`: shared runner/cloud infrastructure and GitHub Actions
 - `tools`: supporting agent utilities
 
