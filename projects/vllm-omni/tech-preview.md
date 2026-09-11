@@ -1,6 +1,6 @@
 # vLLM-Omni Tech Preview — Working Doc
 
-Status: **corrected 3.6-fast1 RC1 accepted for stage promotion after focused AIPCC-image validation passed** — updated 2026-09-02
+Status: **final 3.6-fast1 RC candidate validated on OCP and recommended for promotion; 6/7 model workloads passed, with the remaining failure isolated to known Qwen3-Omni multi-GPU deployment plumbing** — updated 2026-09-11
 
 ## Context
 
@@ -30,27 +30,27 @@ Critical-path tracker for completing the 3.6-fast1 downstream validation and pro
 
 | Key | Story | Status | Owner | Notes |
 |-----|-------|--------|-------|-------|
-| [INFERENG-8996](https://redhat.atlassian.net/browse/INFERENG-8996) | Merge feature/vllm-omni to main | Review | Doug | Gate for everything downstream |
+| [INFERENG-8996](https://redhat.atlassian.net/browse/INFERENG-8996) | Merge feature/vllm-omni to main | Review | Doug | [nm-cicd PR #645](https://github.com/neuralmagic/nm-cicd/pull/645) is mergeable, green, and has no unresolved review threads, but is 2 commits behind `main` and blocked on one required human approval. |
 | [INFERENG-9500](https://redhat.atlassian.net/browse/INFERENG-9500) | CUDA accept-sync pipeline for main (PR #757) | Closed | Tarun | Merged July 31 |
 | [INFERENG-9501](https://redhat.atlassian.net/browse/INFERENG-9501) | Rebase nm-cicd omni branches after PR #757 | Closed | Doug | Branches rebased |
 | [INFERENG-9448](https://redhat.atlassian.net/browse/INFERENG-9448) | v0.26.0 sync coordination | Closed | Doug | v0.26 sync complete; matched AIPCC wheel releases produced. |
 | [INFERENG-9553](https://redhat.atlassian.net/browse/INFERENG-9553) | v0.26.0 rebase (nm-vllm-omni-ent PR #33) | Closed | Doug | Merged. Midstream carry regression (jpg format) found and fixed. |
 | [INFERENG-9522](https://redhat.atlassian.net/browse/INFERENG-9522) | Migrate smoke-test matrix to ocp-test | Closed | Doug | PR #31 merged |
 | [INFERENG-9465](https://redhat.atlassian.net/browse/INFERENG-9465) | RHAIIS containers MR !795 | Closed | Doug | Merged to main Aug 25. Release-branch follow-up completed by !1001 on Sep 1. |
-| [INFERENG-9323](https://redhat.atlassian.net/browse/INFERENG-9323) | AIPCC container coordination | In Progress | Doug | Corrected RC1 accepted for stage. ITS and RHOAI runtime-handoff questions remain. |
+| [INFERENG-9323](https://redhat.atlassian.net/browse/INFERENG-9323) | AIPCC container coordination | Closed | Doug | Corrected RC1 reached stage and passed RHOAI validation. ITS and runtime-handoff questions are follow-up scope. |
 | [INFERENG-9507](https://redhat.atlassian.net/browse/INFERENG-9507) | Add espeak-ng RPM to container image | Closed | Doug | Resolved via Konflux subscription key + `dnf install` in Containerfile. EA2 base image tracker: INFERENG-10063. |
 | [INFERENG-9437](https://redhat.atlassian.net/browse/INFERENG-9437) | CI GPU visibility mismatch | Closed | Doug | GPU count fix via PR #748/#749 |
 | [INFERENG-9614](https://redhat.atlassian.net/browse/INFERENG-9614) | Contract test pod deletion race | Closed | Doug | Cleanup selector too broad (SMOKE vs CONTRACT) |
 | [INFERENG-9318](https://redhat.atlassian.net/browse/INFERENG-9318) | Align midstream Dockerfile with AIPCC patterns | New | Tarun | |
 | [INFERENG-9483](https://redhat.atlassian.net/browse/INFERENG-9483) | SME review of feature/vllm-omni branch | New | Tarun | |
-| [INFERENG-9003](https://redhat.atlassian.net/browse/INFERENG-9003) | First formal validation cycle | In Progress | Doug | Corrected AIPCC RC1 became Ready; health and Qwen3-TTS inference passed. Stage confirmation and final-cycle evidence remain. |
+| [INFERENG-9003](https://redhat.atlassian.net/browse/INFERENG-9003) | First formal validation cycle | Closed | Doug | Corrected RC1 reached stage and passed RHOAI validation; final-RC validation moved to INFERENG-9841/10578. |
 | [INFERENG-8018](https://redhat.atlassian.net/browse/INFERENG-8018) | Consolidate to single CUDA image | Closed | Tarun | PR #32 merged |
 | [INFERENG-9441](https://redhat.atlassian.net/browse/INFERENG-9441) | Early K8s resource deletion race | Closed | Doug | PR #751 merged |
 | [INFERENG-9497](https://redhat.atlassian.net/browse/INFERENG-9497) | FLUX.2-dev xet hash issue | Closed | Doug | HF_HUB_DISABLE_XET=1 workaround |
 | [INFERENG-9615](https://redhat.atlassian.net/browse/INFERENG-9615) | Numba/NumPy version mismatch | Closed | Tarun | PR #832 merged |
 | [INFERENG-9647](https://redhat.atlassian.net/browse/INFERENG-9647) | Remove Z-Image-Turbo stub from main | Closed | Tarun | PR #837 merged. Unblocked CUDA release. |
 | [INFERENG-9660](https://redhat.atlassian.net/browse/INFERENG-9660) | Fork sync review tooling (PR #34) | Closed | Doug | Alex Brooks' diff-fork-sync.sh |
-| [INFERENG-9672](https://redhat.atlassian.net/browse/INFERENG-9672) | Multi-GPU stage-override support for omni | Review | Tarun | gpu_count derived from TP; on PR #645 (needs rebase) |
+| [INFERENG-9672](https://redhat.atlassian.net/browse/INFERENG-9672) | Multi-GPU stage-override support for omni | Review | Tarun | Reproduced in final-RC validation: TP=4 requested but only one GPU visible. PR #645 is mergeable but 2 commits behind `main`; the Qwen3-Omni stage/device mapping still needs correction. |
 | [INFERENG-9751](https://redhat.atlassian.net/browse/INFERENG-9751) | Cut v0.26.0 midstream tag | Closed | Doug | Tags cut, validated build confirmed. |
 | [INFERENG-9744](https://redhat.atlassian.net/browse/INFERENG-9744) | Contract test 500 error — cache_salt validation | Closed | Tarun | Upstream vllm#51654 → nm-vllm-ent#655 → omni PR #36 |
 | [INFERENG-9761](https://redhat.atlassian.net/browse/INFERENG-9761) | Qwen3-Omni-30B regression on v0.26 | In Progress | Tarun | Known error. Upstream fix pending (vllm#50548). |
@@ -62,16 +62,18 @@ Critical-path tracker for completing the 3.6-fast1 downstream validation and pro
 | [INFERENG-10065](https://redhat.atlassian.net/browse/INFERENG-10065) | Document validated model list for EA1 TP | Closed | Doug | Model list posted to RHAISTRAT-1928. |
 | [INFERENG-10069](https://redhat.atlassian.net/browse/INFERENG-10069) | Document Konflux build/trigger workflow | Closed | Doug | Proven workflow documented in `OMNI_AIPCC_HOW_TO.md`. |
 | [INFERENG-10090](https://redhat.atlassian.net/browse/INFERENG-10090) | TTS pipeline produces wrong output language | New | Tarun | Model/test follow-up; not blocking the accepted RC1. |
-| [INFERENG-10120](https://redhat.atlassian.net/browse/INFERENG-10120) | Review librosa removal / upstream-first fix | In Progress | Doug | Follow-up code-quality work; not blocking the accepted RC1. |
-| [INFERENG-10159](https://redhat.atlassian.net/browse/INFERENG-10159) | Track v0.26 AIPCC wheels through working image | In Progress | Doug | Corrected wheel reached a working RC1; Productization accepted it for stage promotion. |
-| [INFERENG-10211](https://redhat.atlassian.net/browse/INFERENG-10211) | Resolve post-merge tokenizers conflict | Review | Doug | Dependency-resolution follow-up. |
-| [INFERENG-10371](https://redhat.atlassian.net/browse/INFERENG-10371) | Published wheel omitted runtime assets | In Progress | Unassigned | Defective first RC identified; corrected wheel/image validated. Upstream/packaging closure remains. |
-| [INFERENG-10403](https://redhat.atlassian.net/browse/INFERENG-10403) | Loft validation fixes and revalidate midstream image | New | Doug | Mainline CI hardening and clean-green revalidation; not an RC1 blocker. |
+| [INFERENG-10120](https://redhat.atlassian.net/browse/INFERENG-10120) | Review librosa removal / upstream-first fix | Closed | Doug | Review complete; follow-up belongs in upstream/carry-reduction work. |
+| [INFERENG-10159](https://redhat.atlassian.net/browse/INFERENG-10159) | Track v0.26 AIPCC wheels through working image | Closed | Doug | Corrected wheel reached a working RC1 and the image was promoted to stage. |
+| [INFERENG-10211](https://redhat.atlassian.net/browse/INFERENG-10211) | Resolve post-merge tokenizers conflict | Closed | Doug | Dependency conflict resolved. |
+| [INFERENG-10371](https://redhat.atlassian.net/browse/INFERENG-10371) | Published wheel omitted runtime assets | In Progress | Doug | Immediate release defect mitigated downstream; durable upstream packaging fix and artifact-level wheel check moved to TP.next. |
+| [INFERENG-10403](https://redhat.atlassian.net/browse/INFERENG-10403) | Loft validation fixes and revalidate midstream image | Backlog | Doug | Mainline CI hardening and clean-green midstream-image revalidation; not a final-RC blocker. |
 | [INFERENG-10401](https://redhat.atlassian.net/browse/INFERENG-10401) | Review multimodal model-serving draft docs | Backlog | Doug | Review requested by Carran; feedback targeted for next week. |
+| [INFERENG-9841](https://redhat.atlassian.net/browse/INFERENG-9841) | Final RC validation and CVE remediation | Review | Doug | Final candidate `3.6.0-fast.1-1789070722` validated 6/7; promotion recommended. |
+| [INFERENG-10578](https://redhat.atlassian.net/browse/INFERENG-10578) | Track final v0.26 image through AIPCC validation | Closed | Doug | Final candidate and matrix evidence recorded; see the [Sep 11 handoff](../../notes/handoffs/2026-09-11-infereng-10578-ocp-validation.md). |
 
 ### [INFERENG-9273 — Post-TP Enhancements (TP.next)](https://redhat.atlassian.net/browse/INFERENG-9273)
 
-Real work descoped from TP for timeline. Continues in parallel, not gating Aug 13.
+Real work descoped from TP for timeline. This is now the active stabilization and road-to-GA planning bucket, not a release gate for 3.6-fast1.
 
 | Key | Story | Status | Notes |
 |-----|-------|--------|-------|
@@ -80,16 +82,32 @@ Real work descoped from TP for timeline. Continues in parallel, not gating Aug 1
 | [INFERENG-9052](https://redhat.atlassian.net/browse/INFERENG-9052) | Omni-specific model validation registry | New | Daniele's input — extend or create for omni model types |
 | [INFERENG-9048](https://redhat.atlassian.net/browse/INFERENG-9048) | RHOAI validation test integration — scope and constraints | New | Two paths: additive tests or accept-sync (preferred) |
 | [INFERENG-9094](https://redhat.atlassian.net/browse/INFERENG-9094) | Upstream input validation fixes (vllm-omni#3649) | New | ~30+ skipped negative tests upstream |
-| [INFERENG-9233](https://redhat.atlassian.net/browse/INFERENG-9233) | Upstream Docker build caching optimization | In Progress | Alex Brooks flagged slow builds |
-| [INFERENG-9257](https://redhat.atlassian.net/browse/INFERENG-9257) | Long-running dogfooding instance on OpenShift | In Progress | STT/TTS endpoint via rhaiis-snippets |
+| [INFERENG-9233](https://redhat.atlassian.net/browse/INFERENG-9233) | Upstream Docker build caching optimization | New | Alex Brooks flagged slow builds |
+| [INFERENG-9257](https://redhat.atlassian.net/browse/INFERENG-9257) | Long-running dogfooding instance on OpenShift | New | STT/TTS endpoint via rhaiis-snippets |
 | [INFERENG-9263](https://redhat.atlassian.net/browse/INFERENG-9263) | GPU test agents image pull waste | New | CI optimization |
 | [INFERENG-8825](https://redhat.atlassian.net/browse/INFERENG-8825) | Evaluate PyPI hosting for internal wheels | New | Process improvement |
-| [INFERENG-9335](https://redhat.atlassian.net/browse/INFERENG-9335) | Reconcile nm-cicd constraints with AIPCC builder | Deferred | First hurdle (fa3-fwd/av) resolved via PR #30. Follow-up TBD. |
+| [INFERENG-9335](https://redhat.atlassian.net/browse/INFERENG-9335) | Reconcile nm-cicd constraints with AIPCC builder | New | Critical Jira priority; first hurdle resolved, but the durable dependency-policy reconciliation remains. |
 | [INFERENG-9523](https://redhat.atlassian.net/browse/INFERENG-9523) | Evaluate making nm-vllm-omni-ent repo private | New | Match nm-vllm-ent; tension with public upstream visibility |
-| [INFERENG-9608](https://redhat.atlassian.net/browse/INFERENG-9608) | Redesign cross-repo GitHub Actions orchestration (Ent → nm-cicd) | Backlog | Easy button + single pane of glass requirements |
+| [INFERENG-9608](https://redhat.atlassian.net/browse/INFERENG-9608) | Redesign cross-repo GitHub Actions orchestration (Ent → nm-cicd) | Closed | `omni-release.yml` / `omni-pipeline.yml` chain landed and was validated. |
 | [INFERENG-9645](https://redhat.atlassian.net/browse/INFERENG-9645) | Upstream midstream carries from nm-vllm-omni-ent | New | Eliminate divergence; Nick is upstream maintainer now |
 | [INFERENG-8004](https://redhat.atlassian.net/browse/INFERENG-8004) | Midstream images report stale vLLM version (setuptools_scm tag miss) | New | pip shows `0.24.1.dev992+rhaiv.3...` instead of clean versions |
 | [INFERENG-10063](https://redhat.atlassian.net/browse/INFERENG-10063) | EA2: Get espeak-ng added to AIPCC base image | New | Proper fix for EA1 Containerfile workaround. Yuchen requested tracker. |
+| [INFERENG-9914](https://redhat.atlassian.net/browse/INFERENG-9914) | Eliminate carried requirements patches | New | Upstream fixes or replace source carries with build-time filtering. |
+| [INFERENG-10172](https://redhat.atlassian.net/browse/INFERENG-10172) | Eliminate midstream carries | New | Audit, upstream, and remove wholesale on the next sync where possible. |
+| [INFERENG-10184](https://redhat.atlassian.net/browse/INFERENG-10184) | Dedicated GPU infrastructure for vLLM-Omni CI | New | Needed for reliable multi-GPU validation and less shared-runner ambiguity. |
+| [INFERENG-10371](https://redhat.atlassian.net/browse/INFERENG-10371) | Durable wheel package-data fix and artifact check | In Progress | Downstream release is mitigated; upstream issue #4932 and an artifact-level wheel assertion remain. |
+
+### TP.next planning checkpoint (Sep 11)
+
+The epic has enough inventory; the missing piece is sequencing and a definition of done. A useful first refinement pass is:
+
+1. **Land the mainline foundation** — rebase and obtain the required approval for PR #645, merge it / close INFERENG-8996, then prove the resulting `main` workflow rather than continuing to treat the feature branch as the release implementation.
+2. **Make validation trustworthy** — INFERENG-9672 (Qwen3-Omni stage/device mapping), INFERENG-10403 (mainline harness and clean-green run), INFERENG-10184 (dedicated GPU capacity), and the WDC PVC cleanup/RBAC defect.
+3. **Reduce fork and packaging debt** — INFERENG-10371, INFERENG-10172, INFERENG-9914, INFERENG-9645, INFERENG-9761, and INFERENG-9004. Require built-wheel assertions so source-checkout tests cannot mask missing runtime assets again. INFERENG-9761 should move from TP to TP.next; its proposed vLLM core fix remains open and the durable ownership is unresolved.
+4. **Stabilize the downstream contract** — INFERENG-9335, INFERENG-10063, and INFERENG-8004: dependency ownership, base-image dependencies, and trustworthy version identity.
+5. **Expand continuous product evidence** — INFERENG-9005, INFERENG-9052, INFERENG-9048, and INFERENG-9257: nightly coverage, a maintained Omni model registry, RHOAI integration tests, and a long-running dogfood deployment.
+
+Items added during refinement should fit one of those outcomes or state why they belong elsewhere. Keep release-specific fixes out of TP.next once their durable follow-up is captured.
 
 ## TP Scope — What We're Doing
 
@@ -171,7 +189,7 @@ Per dhellmann: this is part of **RHAII** (not RHOAI). Standalone image. When mat
 
 **Note:** Release is officially "3.6-fast1" (not "3.6 EA1"). The containers repo has a `3.6-fast1` release branch, vllm-omni Konflux triggers are enabled, and the first component-scoped release tag has completed successfully.
 
-### Assessment (Sep 2 — corrected RC1 accepted for stage promotion)
+### Assessment (Sep 11 — final RC candidate validated and recommended)
 
 **Midstream tag: done.** Tags `v0.26.0+rhaiv.0` and `v0.26.0+rhaiv.1` on nm-vllm-omni-ent (commit `5d15b057`), synced to GitLab mirror. INFERENG-9751 closed. Validated build: `quay.io/vllm/automation-vllm-omni:cuda-31483640232` — full smoke + contract test matrix passing.
 
@@ -197,11 +215,11 @@ Per dhellmann: this is part of **RHAII** (not RHOAI). Standalone image. When mat
 
 Its published vLLM-Omni wheel omitted deploy YAMLs and other non-Python runtime assets. [INFERENG-10371](https://redhat.atlassian.net/browse/INFERENG-10371) tracks the packaging defect. The defect was corrected and a replacement image was built.
 
-**Corrected RC1 accepted for stage promotion:**
+**Corrected RC1 was promoted to stage on September 3:**
 
 `quay.io/aipcc/rhaiis-vllm-omni/cuda-ubi9:3.6.0-fast.1-1788360443`
 
-AIPCC Productization accepted this corrected image for stage promotion and plans to release/promote it on September 3. Promotion completion is not yet verified.
+AIPCC Productization promoted this corrected image to stage on September 3. It passed RHOAI EA1 single- and multi-GPU validation on September 7; INFERENG-9840 is closed.
 
 It was produced from containers tag `vllm-omni-cuda-v2026090201`; both the managed and final release pipelines succeeded. Immutable digest: `sha256:39dd7f54f3d3dd81f1ddd7a8399ad997c3dabf1c83f162776d468c224bc0e67d`.
 
@@ -209,15 +227,25 @@ It was produced from containers tag `vllm-omni-cuda-v2026090201`; both the manag
 
 **The overall Actions run is misleadingly red.** The unused PERFORMANCE path receives `benchmarks=null`; the image-test job itself passed. [INFERENG-10403](https://redhat.atlassian.net/browse/INFERENG-10403) tracks lofting the validation fixes to mainline, fixing the false-red workflow result, repeating validation against a midstream-built image, and recording final green-run and cleanup evidence.
 
-**Konflux integration status:** the corrected downstream image is functional under focused OCP smoke validation. Dedicated ITS coverage and RHOAI runtime-template/handoff questions remain coordination follow-ups, not blockers to the accepted RC1.
+**Final RC candidate validated and recommended for promotion:**
 
-**Remaining chain:** ~~builder/constraints~~ → ~~matched wheels~~ → ~~release-branch container~~ → ~~corrected Konflux release image~~ → ~~focused OCP smoke validation~~ → **stage promotion confirmation**. In parallel: ITS coverage, RHOAI integration confirmation, mainline CI hardening, and midstream-image revalidation.
+`quay.io/aipcc/rhaiis-vllm-omni/cuda-ubi9:3.6.0-fast.1-1789070722`
+
+Immutable digest: `sha256:4d17c21a588539f6429fd1d24e81b8a3f36448f2f4e21f1f241089dfa5568a42`. The image contains `v0.26.0+rhaiv.7`.
+
+[nm-cicd run `34606096112`](https://github.com/neuralmagic/nm-cicd/actions/runs/34606096112) ran the seven-model OCP smoke matrix on the WDC H100 runner. Six workloads reached `/health` HTTP 200 and passed both functional smoke tests: FLUX.2-klein, FLUX.2-dev, FLUX.1-schnell, Z-Image-Turbo, Voxtral TTS, and Qwen3-TTS CustomVoice.
+
+Qwen3-Omni-30B failed before readiness because TP=4 was requested while only one GPU was visible in the serving pod. This matches INFERENG-9672 and is deployment/test plumbing, not evidence of an image defect. The six passing wrapper jobs were marked red only because the runner service account cannot delete per-run PVCs; their readiness and inference evidence remain valid.
+
+**Konflux integration status:** the downstream chain has produced a promoted RC1 and a validated final-RC candidate. Dedicated ITS coverage, RHOAI runtime-template/handoff questions, and CI cleanup remain follow-ups, not evidence against the candidate image.
+
+**Remaining release chain:** ~~builder/constraints~~ → ~~matched wheels~~ → ~~release-branch container~~ → ~~corrected RC1~~ → ~~stage promotion~~ → ~~final-candidate OCP validation~~ → **final-RC promotion and release confirmation**. In parallel: land PR #645, fix Qwen3-Omni stage/device mapping, harden mainline CI, and resolve the WDC PVC cleanup defect.
 
 **PM coordination:** Model list collected and posted to RHAISTRAT-1928. INFERENG-10065 closed.
 
 **Code freeze pushed to Aug 31** (from ~Aug 25). Final RC and release dates unchanged (Sept 2, Sept 17).
 
-**Overall: the immediate RC release path is clear.** The corrected RC1 passed focused runtime validation and has been accepted for stage promotion. Remaining work is promotion confirmation plus CI/process hardening and broader integration follow-through, not an RC image blocker.
+**Overall: the final-RC release path is clear.** The candidate passed six representative workloads; the only model failure is a reproduced deployment regression, and cleanup failures are runner RBAC noise. Promotion/release confirmation is the remaining release action. PR #645 and the durable CI/packaging fixes are important loose ends, but should not be misreported as image blockers.
 
 ### Constraints
 - Europeans + summer — reduced availability
@@ -241,16 +269,21 @@ It was produced from containers tag `vllm-omni-cuda-v2026090201`; both the manag
 ## Open Questions
 
 - Architecture council review — is it required, and what's the process?
-- Which models are in the TP validation matrix vs. dev preview's 7-model set?
-- Has corrected RC1 `3.6.0-fast.1-1788360443` completed promotion to the intended stage registry/location?
+- What is the exact promotion/release status of final candidate `3.6.0-fast.1-1789070722`?
+- Which requested reviewer (`dbarbuzzi`, `dhuangnm`, or `andy-neuma`) can provide the required approval for PR #645 after its next rebase, and should INFERENG-9483 be closed as part of that review?
+- What is the durable fix for Qwen3-Omni stage/device mapping after PR #645 lands?
 - What is the minimum dedicated ITS coverage Srija will land for vllm-omni, and when should it gate promotion?
 - Will RHOAI provide an out-of-the-box vLLM-Omni KServe runtime template, or document a custom ServingRuntime deployment?
 - When will the validation harness fixes land on mainline and produce a fully green midstream-image revalidation run?
+- Who owns the WDC runner PVC delete permission/configuration follow-up?
 
 ## Decision Log
 
 | Date | Decision | Context |
 |------|----------|---------|
+| 2026-09-11 | Final RC candidate recommended for promotion | `3.6.0-fast.1-1789070722` passed 6/7 substantive OCP model validations; Qwen3-Omni reproduced INFERENG-9672, and wrapper cleanup failures were isolated to WDC PVC permissions. |
+| 2026-09-07 | Corrected RC1 passed RHOAI validation | RHOAI EA1 single- and multi-GPU validation passed; the team-wide INFERENG-9840 tracker was closed Sep 8. |
+| 2026-09-03 | Corrected RC1 promoted to stage | Stage promotion of `3.6.0-fast.1-1788360443` confirmed. |
 | 2026-09-02 | Corrected RC1 accepted for stage promotion | Productization accepted `3.6.0-fast.1-1788360443` after focused Qwen3-TTS validation; promotion planned for Sep 3. |
 | 2026-09-02 | Focused AIPCC-image validation passed | nm-cicd run `33662749582`: Ready deployment, `/health` 200, two tests passed, real audio inference, and cleanup. Overall red result is a PERFORMANCE `benchmarks=null` false negative tracked by INFERENG-10403. |
 | 2026-09-02 | Earlier RC rejected | `3.6.0-fast.1-1788277735` omitted packaged runtime assets and must not be used; packaging tracked by INFERENG-10371. |
