@@ -96,6 +96,9 @@ Real work descoped from TP for timeline. This is now the active stabilization an
 | [INFERENG-10172](https://redhat.atlassian.net/browse/INFERENG-10172) | Eliminate midstream carries | New | Audit, upstream, and remove wholesale on the next sync where possible. |
 | [INFERENG-10184](https://redhat.atlassian.net/browse/INFERENG-10184) | Dedicated GPU infrastructure for vLLM-Omni CI | New | Needed for reliable multi-GPU validation and less shared-runner ambiguity. |
 | [INFERENG-10371](https://redhat.atlassian.net/browse/INFERENG-10371) | Durable wheel package-data fix and artifact check | In Progress | Downstream release is mitigated; upstream issue #4932 and an artifact-level wheel assertion remain. |
+| [INFERENG-10709](https://redhat.atlassian.net/browse/INFERENG-10709) | Finalize 3.6 model list and update release spreadsheet | New | Confirm fast2 disposition and cutoff, agree the initial 3.6 GA list, update the shared sheet, and reconcile CI coverage. |
+| [INFERENG-10711](https://redhat.atlassian.net/browse/INFERENG-10711) | Integrate GuideLLM Omni benchmarking into Midstream CI | New | Verify the existing vLLM integration, add explicit Omni coverage, and prove it against a Midstream image. |
+| [INFERENG-10712](https://redhat.atlassian.net/browse/INFERENG-10712) | Add GuideLLM benchmarking for vLLM-Omni upstream CI | New | Related to INFERENG-10711; run repeatable benchmarks in upstream perf-eval and publish them on the CI dashboard. |
 
 ### TP.next planning checkpoint (Sep 11)
 
@@ -257,6 +260,7 @@ Qwen3-Omni-30B failed before readiness because TP=4 was requested while only one
 | Issue | What | Owner |
 |-------|------|-------|
 | [INFERENG-9840](https://redhat.atlassian.net/browse/INFERENG-9840) | **3.6-fast-1 Omni — Midstream validation and stage RC** (team-wide tracker, due Aug 19) | Doug Smith |
+| [INFERENG-10710](https://redhat.atlassian.net/browse/INFERENG-10710) | **vLLM-Omni Midstream: RHOAI 3.6 GA release planning** (Omni remains Tech Preview) | Doug Smith |
 | [INFERENG-6288](https://redhat.atlassian.net/browse/INFERENG-6288) | Dev Preview epic (predecessor) | Doug Smith |
 | [INFERENG-8929](https://redhat.atlassian.net/browse/INFERENG-8929) | AI Agent Initiative — agentic sync lives here | Doug Smith |
 | [RHAISTRAT-1266](https://redhat.atlassian.net/browse/RHAISTRAT-1266) | Strategy ticket | — |
