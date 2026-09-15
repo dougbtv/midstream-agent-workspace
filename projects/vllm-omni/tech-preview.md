@@ -65,7 +65,7 @@ Critical-path tracker for the completed 3.6-fast1 downstream validation/release 
 | [INFERENG-10120](https://redhat.atlassian.net/browse/INFERENG-10120) | Review librosa removal / upstream-first fix | Closed | Doug | Review complete; follow-up belongs in upstream/carry-reduction work. |
 | [INFERENG-10159](https://redhat.atlassian.net/browse/INFERENG-10159) | Track v0.26 AIPCC wheels through working image | Closed | Doug | Corrected wheel reached a working RC1 and the image was promoted to stage. |
 | [INFERENG-10211](https://redhat.atlassian.net/browse/INFERENG-10211) | Resolve post-merge tokenizers conflict | Closed | Doug | Dependency conflict resolved. |
-| [INFERENG-10371](https://redhat.atlassian.net/browse/INFERENG-10371) | Published wheel omitted runtime assets | In Progress | Doug | Immediate release defect mitigated downstream; durable upstream packaging fix and artifact-level wheel check moved to TP.next. |
+| [INFERENG-10371](https://redhat.atlassian.net/browse/INFERENG-10371) | Published wheel omitted runtime assets | In Progress | Doug | Immediate release defect mitigated downstream; durable upstream packaging fix and artifact-level wheel check moved to the 3.6 GA epic. |
 | [INFERENG-10403](https://redhat.atlassian.net/browse/INFERENG-10403) | Loft validation fixes and revalidate midstream image | In Progress | Doug | Moved to 3.6 GA epic INFERENG-10710; early mainline validation evidence for the new release plan. |
 | [INFERENG-10401](https://redhat.atlassian.net/browse/INFERENG-10401) | Review multimodal model-serving draft docs | Closed | Doug | Review completed. |
 | [INFERENG-9841](https://redhat.atlassian.net/browse/INFERENG-9841) | Final RC validation and CVE remediation | Closed | Doug | Final candidate `3.6.0-fast.1-1789070722` released; validation and accepted follow-ups recorded. |
@@ -79,37 +79,38 @@ Real work descoped from TP for timeline. This is now the active stabilization an
 |-----|-------|--------|-------|
 | [INFERENG-9005](https://redhat.atlassian.net/browse/INFERENG-9005) | Nightly build and test pipeline | New | Needs merge to main first |
 | [INFERENG-9004](https://redhat.atlassian.net/browse/INFERENG-9004) | Upstream sync process — tracker for agentic sync | New | Links to [INFERENG-8930](https://redhat.atlassian.net/browse/INFERENG-8930) (AI Agent Initiative) |
-| [INFERENG-9052](https://redhat.atlassian.net/browse/INFERENG-9052) | Omni-specific model validation registry | New | Daniele's input — extend or create for omni model types |
+| [INFERENG-9052](https://redhat.atlassian.net/browse/INFERENG-9052) | Omni-specific model validation registry | Closed | Existing nm-cicd registry extended for Omni in PR #645. |
 | [INFERENG-9048](https://redhat.atlassian.net/browse/INFERENG-9048) | RHOAI validation test integration — scope and constraints | New | Two paths: additive tests or accept-sync (preferred) |
-| [INFERENG-9094](https://redhat.atlassian.net/browse/INFERENG-9094) | Upstream input validation fixes (vllm-omni#3649) | New | ~30+ skipped negative tests upstream |
-| [INFERENG-9233](https://redhat.atlassian.net/browse/INFERENG-9233) | Upstream Docker build caching optimization | New | Alex Brooks flagged slow builds |
+| [INFERENG-9094](https://redhat.atlassian.net/browse/INFERENG-9094) | Upstream input validation fixes (vllm-omni#3649) | Closed | Upstream issue #3649 closed Sep 9 after endpoint validator work. |
+| [INFERENG-9233](https://redhat.atlassian.net/browse/INFERENG-9233) | Upstream Docker build caching optimization | Closed | Upstream PR #5133 merged Jul 23. |
 | [INFERENG-9257](https://redhat.atlassian.net/browse/INFERENG-9257) | Long-running dogfooding instance on OpenShift | New | STT/TTS endpoint via rhaiis-snippets |
 | [INFERENG-9263](https://redhat.atlassian.net/browse/INFERENG-9263) | GPU test agents image pull waste | New | CI optimization |
 | [INFERENG-8825](https://redhat.atlassian.net/browse/INFERENG-8825) | Evaluate PyPI hosting for internal wheels | New | Process improvement |
 | [INFERENG-9335](https://redhat.atlassian.net/browse/INFERENG-9335) | Reconcile nm-cicd constraints with AIPCC builder | New | Critical Jira priority; first hurdle resolved, but the durable dependency-policy reconciliation remains. |
 | [INFERENG-9523](https://redhat.atlassian.net/browse/INFERENG-9523) | Evaluate making nm-vllm-omni-ent repo private | New | Match nm-vllm-ent; tension with public upstream visibility |
 | [INFERENG-9608](https://redhat.atlassian.net/browse/INFERENG-9608) | Redesign cross-repo GitHub Actions orchestration (Ent → nm-cicd) | Closed | `omni-release.yml` / `omni-pipeline.yml` chain landed and was validated. |
-| [INFERENG-9645](https://redhat.atlassian.net/browse/INFERENG-9645) | Upstream midstream carries from nm-vllm-omni-ent | New | Eliminate divergence; Nick is upstream maintainer now |
+| [INFERENG-9645](https://redhat.atlassian.net/browse/INFERENG-9645) | Upstream midstream carries from nm-vllm-omni-ent | Closed | Consolidated into INFERENG-10172. |
 | [INFERENG-8004](https://redhat.atlassian.net/browse/INFERENG-8004) | Midstream images report stale vLLM version (setuptools_scm tag miss) | New | pip shows `0.24.1.dev992+rhaiv.3...` instead of clean versions |
 | [INFERENG-10063](https://redhat.atlassian.net/browse/INFERENG-10063) | EA2: Get espeak-ng added to AIPCC base image | New | Proper fix for EA1 Containerfile workaround. Yuchen requested tracker. |
 | [INFERENG-9914](https://redhat.atlassian.net/browse/INFERENG-9914) | Eliminate carried requirements patches | New | Upstream fixes or replace source carries with build-time filtering. |
-| [INFERENG-10172](https://redhat.atlassian.net/browse/INFERENG-10172) | Eliminate midstream carries | New | Audit, upstream, and remove wholesale on the next sync where possible. |
+| [INFERENG-10172](https://redhat.atlassian.net/browse/INFERENG-10172) | Eliminate midstream carries | New | Moved to INFERENG-10710 with bounded clean-sync and explicit carry-ownership scope. |
 | [INFERENG-10184](https://redhat.atlassian.net/browse/INFERENG-10184) | Dedicated GPU infrastructure for vLLM-Omni CI | New | Needed for reliable multi-GPU validation and less shared-runner ambiguity. |
-| [INFERENG-10371](https://redhat.atlassian.net/browse/INFERENG-10371) | Durable wheel package-data fix and artifact check | In Progress | Downstream release is mitigated; upstream issue #4932 and an artifact-level wheel assertion remain. |
+| [INFERENG-10371](https://redhat.atlassian.net/browse/INFERENG-10371) | Durable wheel package-data fix and artifact check | In Progress | Moved to INFERENG-10710; upstream issue #4932 and an artifact-level wheel assertion remain. |
 | [INFERENG-10090](https://redhat.atlassian.net/browse/INFERENG-10090) | Reproduce TTS wrong-language output against current matched versions | New | Moved here from INFERENG-9000 at TP closeout; retain as stabilization work unless current reproduction makes it release-relevant. |
-| [INFERENG-10709](https://redhat.atlassian.net/browse/INFERENG-10709) | Finalize 3.6 model list and update release spreadsheet | New | Confirm fast2 disposition and cutoff, agree the initial 3.6 GA list, update the shared sheet, and reconcile CI coverage. |
-| [INFERENG-10711](https://redhat.atlassian.net/browse/INFERENG-10711) | Integrate GuideLLM Omni benchmarking into Midstream CI | New | Verify the existing vLLM integration, add explicit Omni coverage, and prove it against a Midstream image. |
+| [INFERENG-10709](https://redhat.atlassian.net/browse/INFERENG-10709) | Finalize 3.6 model list and update release spreadsheet | Review | Moved to INFERENG-10710 as release-planning work. |
+| [INFERENG-10711](https://redhat.atlassian.net/browse/INFERENG-10711) | Integrate GuideLLM Omni benchmarking into Midstream CI | New | Moved to INFERENG-10710 as an explicit staffing/scope tradeoff. |
 | [INFERENG-10712](https://redhat.atlassian.net/browse/INFERENG-10712) | Add GuideLLM benchmarking for vLLM-Omni upstream CI | New | Related to INFERENG-10711; run repeatable benchmarks in upstream perf-eval and publish them on the CI dashboard. |
+| [INFERENG-9470](https://redhat.atlassian.net/browse/INFERENG-9470) | Upstream removal of `fa3-fwd` | New | Canonical tracker moved to INFERENG-10710; duplicate INFERENG-7767 closed. |
 
 ### TP.next planning checkpoint (Sep 15)
 
-The epic has enough inventory; the missing piece is sequencing and a definition of done. A useful first refinement pass is:
+The epic has enough inventory. Release-relevant work was promoted to INFERENG-10710; TP.next retains non-gating stabilization and longer-term improvement work. Current sequencing is:
 
-1. **Prove the new mainline foundation** — PR #645 and INFERENG-8996 are complete. Run INFERENG-10403 from merged `main` and record the Midstream-image result rather than continuing to treat a feature branch as the validation implementation.
+1. **Prove the new mainline foundation** — PR #645 and INFERENG-8996 are complete. INFERENG-10403 moved to the 3.6 GA epic to record a Midstream-image result from merged `main`.
 2. **Make validation trustworthy** — stage-override support in INFERENG-9672 is closed; isolate the remaining WDC Qwen3-Omni GPU-visibility failure, complete INFERENG-10403, secure dedicated capacity through INFERENG-10184, and resolve the WDC PVC cleanup/RBAC defect.
-3. **Reduce fork and packaging debt** — INFERENG-10371, INFERENG-10172, INFERENG-9914, INFERENG-9645, and INFERENG-9004. Require built-wheel assertions so source-checkout tests cannot mask missing runtime assets again. INFERENG-9761 moved to the 3.6 GA epic because its unresolved Qwen3-Omni behavior may affect that release rather than general TP.next hygiene.
+3. **Reduce fork and packaging debt** — release-bounded work in INFERENG-10371, INFERENG-10172, and INFERENG-9470 moved to INFERENG-10710. TP.next retains the broader requirements/upstream-sync improvements in INFERENG-9914 and INFERENG-9004. INFERENG-9645 and INFERENG-7767 were closed as duplicate trackers.
 4. **Stabilize the downstream contract** — INFERENG-9335, INFERENG-10063, and INFERENG-8004: dependency ownership, base-image dependencies, and trustworthy version identity.
-5. **Expand continuous product evidence** — INFERENG-9005, INFERENG-9052, INFERENG-9048, and INFERENG-9257: nightly coverage, a maintained Omni model registry, RHOAI integration tests, and a long-running dogfood deployment.
+5. **Expand continuous product evidence** — INFERENG-9005, INFERENG-9048, and INFERENG-9257: nightly coverage, RHOAI integration tests, and a long-running dogfood deployment. The Omni registry design work in INFERENG-9052 is complete.
 
 Items added during refinement should fit one of those outcomes or state why they belong elsewhere. Keep release-specific fixes out of TP.next once their durable follow-up is captured.
 
