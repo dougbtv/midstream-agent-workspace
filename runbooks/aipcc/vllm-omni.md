@@ -1,6 +1,9 @@
 # vLLM-Omni AIPCC How-To
 
-Working notes for interacting with the AIPCC GitLab repos for vllm-omni containerization. Based on the INFERENG-9465 work (July 2026).
+Working notes for interacting with the AIPCC GitLab repos for vllm-omni
+containerization. Based on the INFERENG-9465 work (July 2026), with the
+release-branch coordination workflow last verified during the 3.6-fast2 carry
+forward (September 2026).
 
 ## Repos and What They Do
 
@@ -80,6 +83,87 @@ WHEEL_RELEASE_X86_64=3.6-fast1.3898+vllm-omni-cuda13.0-ubi9-x86_64
 - No tiktoken pre-download (that's gpt-oss, not omni)
 - `espeak-ng` is installed with `dnf`; the Konflux build service account has the
   subscription access needed for this step
+
+## Release-Branch Productization Changes and MR Ordering
+
+AIPCC Productization may open a broad release-branch MR that updates the
+`.tekton/` PipelineRuns for every component at once. That work can include more
+than renaming the application and component for the new release: it may also
+change the shared pipeline resolver, service accounts, output repositories, and
+branch predicates. Treat that MR as the owner of release-wide PipelineRun
+wiring.
+
+Before opening or updating a component MR, inspect all open MRs targeting the
+release branch and compare changed paths:
+
+```bash
+PROJECT='redhat%2Frhel-ai%2Frhaiis%2Fcontainers'
+BRANCH='3.6-fast2'
+
+glab api "projects/${PROJECT}/merge_requests?target_branch=${BRANCH}&state=opened&per_page=100" \
+  | jq -r '.[] | [.iid, .title, .source_branch, .web_url] | @tsv'
+
+for MR in <AIPCC_MR> <COMPONENT_MR>; do
+  glab api "projects/${PROJECT}/merge_requests/${MR}/changes" \
+    | jq -r --arg mr "${MR}" '.changes[] | [$mr, .new_path] | @tsv'
+done
+```
+
+If the AIPCC MR and the vLLM-Omni MR touch either Omni PipelineRun file:
+
+1. Do not merge the Omni MR first.
+2. Remove the overlapping `.tekton/` changes from the Omni MR. Keep its diff
+   limited to component-owned content such as
+   `build-args.vllm-omni/cuda-ubi9.conf` or the Containerfile.
+3. Record the dependency in both MRs and the owning Jira issue.
+4. Wait for the AIPCC MR to merge, then rebase the Omni MR onto the updated
+   release branch.
+5. Verify the inherited Omni on-pull and on-push configuration: application,
+   component, output image, service account, release-branch predicate, tag
+   predicate, and pipeline resolver.
+6. Rerun GitLab lint, the Konflux image build, label checks, and the Podman
+   integration scenario. A rebase or follow-up push can reset approval, so get
+   fresh approval after the final validated diff.
+
+Do not assume that copied PipelineRuns are correct merely because the new
+release branch exists. A copied file may still target the prior release in its
+CEL predicate, application/component labels, output image, or service account.
+
+### Choosing the release-branch base image
+
+Use the base image already merged for the corresponding component on the live
+target branch. Do not select a newer final-looking image merely because
+Renovate has proposed it in an open MR.
+
+For the 3.6-fast2 carry-forward, the merged CUDA base update in containers MR
+`!1072` selected:
+
+```text
+quay.io/aipcc/base-images/cuda-13.0-el9.8:3.6.0-ea.2-1789502554
+```
+
+An open Renovate MR (`!1077`) proposed a later `3.6.0-*` image, but it was not
+approved or merged. The Omni component therefore followed the merged EA2 CUDA
+baseline. Merged CPU (`!1082`) and Gaudi (`!1080`) Fast2 delivery MRs used the
+same EA2-family convention.
+
+For an approved exact artifact carry-forward, preserve the existing immutable
+wheel release refs. Update only the target release's base image and product
+identity unless release policy explicitly requires newly named wheel artifacts.
+Do not add a wheel-pipeline MR or mint a source tag simply to make the artifact
+look new.
+
+### 3.6-fast2 example
+
+- AIPCC release-wide PipelineRun MR: containers `!1083`
+- vLLM-Omni component MR: containers `!1084`
+- Overlap found: both initially changed the two Omni `.tekton/` files
+- Resolution: `!1084` dropped the redundant PipelineRun edits and retained only
+  the Omni build-args carry-forward; it queued behind `!1083` for rebase and
+  final validation
+
+This ordering preserves the AIPCC Productization team's shared pipeline changes
+without losing the component-specific wheel and base-image decision.
 
 ## Konflux Container Workflow
 
