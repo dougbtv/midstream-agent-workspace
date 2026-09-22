@@ -94,6 +94,11 @@ id = "aicheat"
 local_name = "aicheat"
 url = "https://git.decapod.one/brethil/aicheat"
 
+[[sources]]
+id = "agentops-powderline"
+local_name = "agentops-powderline"
+url = "https://github.com/track-forge/agentops-powderline.git"
+
 # Product and supporting attachments. Paths are relative to this workspace.
 
 [[attachments]]
@@ -221,3 +226,9 @@ group = "tools"
 name = "agent utility"
 source = "aicheat"
 path = "repos/tools/aicheat"
+
+[[attachments]]
+group = "tools"
+name = "agent workflow orchestrator"
+source = "agentops-powderline"
+path = "repos/tools/agentops-powderline"
