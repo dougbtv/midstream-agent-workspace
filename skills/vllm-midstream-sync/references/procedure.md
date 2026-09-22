@@ -213,50 +213,58 @@ This research is useful at multiple stages: before merging (to pick the right br
 
 ## Post-Merge: FlashInfer Dependency Alignment
 
-**This is the single most common build failure after an upstream merge.** Every upstream sync that bumps vLLM's flashinfer dependency will break the CUDA image build unless `cuda.txt` is updated to match. This has caused recurring nightly failures across v0.23.0, v0.25.0, and v0.27.0 cycles.
+**This is the single most common build failure after an upstream merge.** Every upstream sync that bumps vLLM's FlashInfer dependency can break the CUDA wheel or image build unless the downstream JIT-cache carry and its CUDA-specific package index are preserved in nm-vllm-ent.
 
 ### The dependency chain
 
-1. The **vLLM wheel** (built from nm-vllm-ent) declares `flashinfer-python` and `flashinfer-cubin` as pip dependencies — version comes from upstream's `pyproject.toml`
-2. **`neuralmagic/requirements/cuda.txt`** in **nm-cicd** separately pins `flashinfer-python` and `flashinfer-cubin` for the container image build
-3. After `git merge -X theirs upstream/...`, the wheel's metadata updates to the new flashinfer version, but **`cuda.txt` in nm-cicd keeps the old pins** because it's our file, not upstream's
-4. At image build time, `uv` tries to install the wheel (which requires flashinfer==X.Y.Z) alongside cuda.txt (which pins flashinfer==A.B.C) — the conflict is unresolvable and the build fails
+1. Upstream **`requirements/cuda.txt`** in nm-vllm-ent pins `flashinfer-python` and `flashinfer-cubin`; `setup.py` excludes `flashinfer-cubin` from wheel metadata because it is not on PyPI.
+2. nm-vllm-ent carries **`flashinfer-jit-cache`** in the same file, marked `# NOTE(rhaiis-sync)`, because both midstream and downstream builds install the CUDA-specific prebuilt kernels.
+3. `flashinfer-python` and `flashinfer-cubin` come from `https://flashinfer.ai/whl/`; `flashinfer-jit-cache` comes from a CUDA-specific index such as `https://flashinfer.ai/whl/cu130`.
+4. An upstream merge can overwrite the downstream JIT-cache line or bump the shared version. Restoring the pin without also exposing the CUDA-specific index makes `uv` report that the requested JIT-cache version does not exist even when it is published there.
 
-### Package rename: `flashinfer-jit-cache` → `flashinfer-cubin`
+### Where FlashInfer dependencies live
 
-Upstream renamed `flashinfer-jit-cache` to `flashinfer-cubin`. If `cuda.txt` still references `flashinfer-jit-cache`, update the package name to `flashinfer-cubin`.
+As of v0.28.0, FlashInfer dependencies live in **nm-vllm-ent** `requirements/cuda.txt`, not nm-cicd. `flashinfer-cubin` and `flashinfer-jit-cache` are distinct packages; do not replace one with the other. The former is upstream's generic cubin package, while the latter is our CUDA-specific JIT-cache carry.
 
 ### After every upstream merge, before dispatching a build
 
 ```bash
-# 1. In nm-vllm-ent: check what flashinfer version the merged vLLM code expects
-grep -i flashinfer pyproject.toml setup.py requirements*.txt 2>/dev/null
-grep FLASHINFER docker/Dockerfile 2>/dev/null
+# 1. In nm-vllm-ent, inspect upstream's pins, our carry, and Dockerfile version.
+grep -i 'flashinfer\|extra-index' requirements/cuda.txt
+grep FLASHINFER_VERSION docker/Dockerfile
 
-# 2. In nm-cicd: check what cuda.txt currently pins
-grep -i flashinfer neuralmagic/requirements/cuda.txt
+# 2. Derive the CUDA-specific index from the target CUDA version. For CUDA 13.0:
+#    https://flashinfer.ai/whl/cu130
 
-# 3. If they don't match, update cuda.txt in nm-cicd to align with the wheel's requirement
-#    Edit neuralmagic/requirements/cuda.txt — bump flashinfer-python and flashinfer-cubin
-#    to match what the wheel expects
-#    Also rename flashinfer-jit-cache to flashinfer-cubin if still using the old name
+# 3. Verify the exact JIT-cache release is published on that index before building.
+curl -fsSL https://flashinfer.ai/whl/cu130/flashinfer-jit-cache/ \
+  | grep -F 'flashinfer_jit_cache-<version>+cu130'
 
-# 4. In nm-cicd: commit the pin bump
-git add neuralmagic/requirements/cuda.txt
-git commit -m "Bump flashinfer pins in cuda.txt to match upstream"
+# 4. If the downstream carry or index was lost, restore both in requirements/cuda.txt:
+#    --extra-index-url https://flashinfer.ai/whl/cu130
+#    flashinfer-jit-cache==<version>
+
+# 5. Prove uv can see the package through that index, then commit the update.
+uv pip install --dry-run --system --no-cache \
+  --index-url https://flashinfer.ai/whl/cu130 \
+  'flashinfer-jit-cache==<version>'
+git add requirements/cuda.txt
+git commit -m "Align FlashInfer JIT cache with upstream"
 ```
 
 ### Diagnosing flashinfer build failures
 
-If the CUDA image build fails with a `uv` resolution error mentioning `flashinfer`, this is almost certainly a pin mismatch in `cuda.txt`. Check the build logs for lines like:
-- `error: cannot install flashinfer-python==X.Y.Z and flashinfer-python==A.B.C`
-- `conflict: flashinfer-cubin` version requirements
+If a CUDA wheel or image build fails with a `uv` resolution error mentioning FlashInfer, check all three conditions:
 
-Fix: update `cuda.txt` pins in nm-cicd, commit, push, and rebuild (image-only via `build-image.yml` if the wheel already succeeded).
+1. The `flashinfer-jit-cache` carry still exists in nm-vllm-ent `requirements/cuda.txt`.
+2. Its version is compatible with the upstream `flashinfer-python`, `flashinfer-cubin`, and Dockerfile version.
+3. The matching `cu<major><minor>` extra index is present and actually publishes that version.
+
+Do not interpret `No solution found ... no version of flashinfer-jit-cache==...` as proof that the package was never published until the resolver has been tested against the CUDA-specific index. Fix the pin or index in nm-vllm-ent, commit, push, and run a full rebuild if the wheel failed; use `build-image.yml` only when the wheel already succeeded.
 
 ### Runtime version mismatch (serve time)
 
-Even with aligned build-time pins, a version mismatch between `flashinfer` and `flashinfer-cubin` (or the old `flashinfer-jit-cache`) at runtime will crash the vLLM process. The `FLASHINFER_DISABLE_VERSION_CHECK=1` env var (already in the deploy command template) bypasses this check but means baked JIT cubins won't be used — flashinfer falls back to slower runtime JIT compilation on first request.
+Even with aligned build-time pins, a version mismatch between `flashinfer` and `flashinfer-jit-cache` at runtime will crash the vLLM process. The `FLASHINFER_DISABLE_VERSION_CHECK=1` env var (already in the deploy command template) bypasses this check but means baked JIT cubins won't be used — flashinfer falls back to slower runtime JIT compilation on first request.
 
 ---
 name: midstream-build-from-upstream
@@ -508,7 +516,7 @@ ssh <user>@<host> 'curl -s http://127.0.0.1:8000/v1/chat/completions \
 
 ### FlashInfer version mismatch = image build failure
 
-The most common build failure after an upstream merge. If `neuralmagic/requirements/cuda.txt` pins a different flashinfer version than what the vLLM wheel expects, `uv` will fail to resolve dependencies during the CUDA image build. See the "Post-Merge: FlashInfer Dependency Alignment" section above for the full dependency chain and fix procedure. Also watch for the `flashinfer-jit-cache` → `flashinfer-cubin` package rename — stale package names in `cuda.txt` will also break the build.
+The most common build failure after an upstream merge. Preserve nm-vllm-ent's `flashinfer-jit-cache` carry and its CUDA-specific package index in `requirements/cuda.txt`; matching version numbers are insufficient when `uv` cannot see the index that publishes the JIT-cache wheel. See "Post-Merge: FlashInfer Dependency Alignment" above.
 
 ### NFS + rootless podman = permission denied
 
@@ -571,7 +579,7 @@ ssh <user>@<host> "chg release -G <gpu_ids>"
 When running the full lifecycle (merge + build + deploy + test), this is the sequencing:
 
 1. **Merge** upstream release/PR into nm-vllm-ent, remove `.github/`, push
-2. **Check FlashInfer alignment** in `neuralmagic/requirements/cuda.txt` — bump pins to match what the wheel expects (see "Post-Merge: FlashInfer Dependency Alignment" section)
+2. **Check FlashInfer alignment** in nm-vllm-ent `requirements/cuda.txt` — preserve the JIT-cache carry, match the upstream version, expose the target CUDA index, and prove resolution before dispatch (see "Post-Merge: FlashInfer Dependency Alignment")
 3. **Create matching nm-cicd branch** off main, push
 4. **Dispatch build** via `build-whl-image.yml`
 5. **Start model download** on dev box in background (parallelizes with build)
