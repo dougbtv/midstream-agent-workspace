@@ -2,7 +2,7 @@
 
 How to build, validate, and publish a Red Hat RHAIIS/vLLM preview container image within 24 hours of a new AI model release. These previews are published to the official Red Hat Container Registry as unsupported, early-access images — clearly tagged as preview, ephemeral, and outside Red Hat's standard product lifecycle.
 
-This skill covers the full lifecycle: upstream coordination, JIRA tracking, merge/build/test (via the midstream-build-from-upstream skill), AIPCC handoff, image labeling, and comms/documentation.
+This skill covers the full lifecycle: upstream coordination, JIRA tracking, merge/build/test (via the `vllm-midstream-build-from-upstream` skill), AIPCC handoff, image labeling, and comms/documentation.
 
 ## Human-Agent Flow
 
@@ -18,9 +18,9 @@ This skill covers the full lifecycle: upstream coordination, JIRA tracking, merg
 ### What the agent does
 
 1. **Creates JIRA epic** — clones from template INFERENG-1857, creates stories for each checkpoint
-2. **Assembles the nm-vllm-ent branch** — merges upstream resources using the midstream-build-from-upstream skill's merge strategies
+2. **Assembles the nm-vllm-ent branch** — merges upstream resources using the `vllm-midstream-build-from-upstream` skill's merge strategies
 3. **Runs pre-flight checks** — CUDA version compatibility, dependency audit, dev box availability
-4. **Drives the build/deploy/test cycle** — dispatches GH Actions, monitors builds, deploys to dev box, runs smoke tests (all per the midstream-build-from-upstream skill)
+4. **Drives the build/deploy/test cycle** — dispatches GH Actions, monitors builds, deploys to dev box, runs smoke tests (all per the `vllm-midstream-build-from-upstream` skill)
 5. **Tracks build iterations** — maintains a running build table in JIRA comments
 6. **Prepares AIPCC handoff** — pushes validated image to `quay.io/vllm/rhaiis-early-access`, provides Containerfile LABEL text
 7. **Publishes usage gist** — build info, deploy steps, smoke tests, gotchas, model-specific notes
@@ -71,9 +71,9 @@ Choose the track at notification time based on: Is the model already supported i
 
 **Agent-driven. Human provides guidance on merge strategy and model constraints.**
 
-- Assemble nm-vllm-ent branch with commits/cherry-picks (per midstream-build-from-upstream skill)
+- Assemble nm-vllm-ent branch with commits/cherry-picks (per `vllm-midstream-build-from-upstream`)
 - Run pre-flight checks (see Pre-Flight Checks below)
-- Trigger build via GitHub Actions (per midstream-build-from-upstream skill)
+- Trigger build via GitHub Actions (per `vllm-midstream-build-from-upstream`)
 - Download model weights on dev box in background during build
 - Run smoke tests on dev box
 - Identify constraints and limitations (critical dependency — must scope what works and what doesn't)
@@ -260,7 +260,7 @@ Maintain awareness of UBI Python packaging differences vs upstream's Debian/Ubun
 
 ## Technical Build Cycle
 
-**The core merge/build/deploy/test loop follows the vLLM midstream sync skill.** Reference `skills/vllm-midstream-sync/SKILL.md` for:
+**The core merge/build/deploy/test loop follows `vllm-midstream-build-from-upstream`.** Use it for:
 
 - Merge strategies (upstream release branch, upstream PR, full sync)
 - Build dispatch (`build-whl-image.yml`, `build-image.yml`)
@@ -466,7 +466,7 @@ FlashInfer writes compiled cubins at runtime. In rootless podman, these writes c
 
 ### NFS + rootless podman = permission denied
 
-Always use local disk for model weights, never NFS. See midstream-build-from-upstream skill for details.
+Always use local disk for model weights, never NFS. See `vllm-midstream-build-from-upstream` for details.
 
 ### S3 presigned links expire fast
 
@@ -503,7 +503,7 @@ For releases requiring PR merges, private repos, or dependency changes:
 1. Create JIRA epic + stories (clone from INFERENG-1857 template)
 2. Research upstream: PRs, commits, dependencies, known issues
 3. Run pre-flight checks (CUDA version, dependency audit, dev box availability, UBI gaps)
-4. Assemble nm-vllm-ent branch (merge strategy per midstream-build-from-upstream skill)
+4. Assemble nm-vllm-ent branch (merge strategy per `vllm-midstream-build-from-upstream`)
 5. Dispatch build, download model weights in parallel
 6. Monitor build — on failure, investigate and iterate
 7. Track build iterations in JIRA comment table
