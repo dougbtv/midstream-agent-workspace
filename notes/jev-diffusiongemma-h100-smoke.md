@@ -4,7 +4,9 @@ This is the first-run sketch for [INFERENG-11113](https://redhat.atlassian.net/b
 
 ## Proven inputs
 
-- Image: `quay.io/vllm/automation-vllm:cuda-36142158631`
+- Build image: `quay.io/vllm/automation-vllm:cuda-36142158631`
+- Early-access preview image: `quay.io/vllm/rhaiis-early-access:diffusiongemma-jev`
+- Published manifest: `sha256:3f653d8da80d118fd133d49a4dc5fbff97c9bcb1f33053da866cc7f5fe080afa`
 - Model: `RedHatAI/diffusiongemma-26B-A4B-it-FP8-dynamic`
 - Model repository cache: `/mnt/nfs-preprod-1/dougbtv/hub_cache/hub/models--RedHatAI--diffusiongemma-26B-A4B-it-FP8-dynamic`
 - Model snapshot: `3b3dae4697494da5a290e9c0461954449e76c4f5`
