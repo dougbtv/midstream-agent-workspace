@@ -54,12 +54,15 @@ Wait for `Application startup complete` in the logs before proceeding.
 
 ## Start the example decision server
 
-The `/v1/systemone` API is an upstream example adapter, not a stable vLLM API. The diffusion read machinery itself is in vLLM core. This preview image does not include vLLM's `examples/` tree, so copy the matching branch's adapter script into the running container first.
+The `/v1/systemone` API is an upstream example adapter, not a stable vLLM API. The diffusion read machinery itself is in vLLM core. This preview image does not include vLLM's `examples/` tree, so this gist includes the matching `structured_server.py` as a second file (copied from `doug/diffusion-jev` at `5e1f6840`). Download that file onto the host where Podman runs, then copy it into the running container.
 
 ```bash
-podman cp \
-  /path/to/nm-vllm-ent/examples/features/structured_diffusion/structured_server.py \
-  jev-dgemma-smoke:/tmp/jev-structured-server.py
+# From this gist's "structured_server.py" file, use Raw → Save As,
+# or download it explicitly:
+curl -L https://gist.githubusercontent.com/dougbtv/14b2a904a51fb1ede511ce7599f4f9a8/raw/structured_server.py \
+  -o structured_server.py
+
+podman cp ./structured_server.py jev-dgemma-smoke:/tmp/jev-structured-server.py
 
 podman exec jev-dgemma-smoke sh -lc 'nohup python3 /tmp/jev-structured-server.py --upstream http://127.0.0.1:8000 --tokenizer /model-repo/snapshots/3b3dae4697494da5a290e9c0461954449e76c4f5 --canvas 64 >/tmp/structured-server.log 2>&1 &'
 
