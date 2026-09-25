@@ -6,6 +6,10 @@ This is the first-run sketch for [INFERENG-11113](https://redhat.atlassian.net/b
 
 The structured-decision support in this preview comes from upstream vLLM [PR #57250 — structured generation mode for DiffusionGemma](https://github.com/vllm-project/vllm/pull/57250), merged as [`1b3b88ec`](https://github.com/vllm-project/vllm/commit/1b3b88ec2b7457aa030db4d0e7d8aaf04f6d0fb8). The Midstream Jev branch is based on upstream nightly `c3f5270270aedf598b5f633088623c194c8f0b6c`, which was verified to contain that merge.
 
+## What “Jev-like” means here
+
+Rather than asking a model to write prose and parsing it afterward, a Jev-like service treats the model as a decision function: it takes unstructured state and returns typed answers—yes/no, a choice, or a score—with probabilities that policy can use for routing, thresholds, and human escalation. DiffusionGemma makes that practical by denoising a fixed token canvas in parallel; vLLM's structured-read mode pins an answer template, reads the distribution at the answer slots, and can take additional reads only when uncertainty is high. The bundled `/v1/systemone` server is an upstream example adapter for this pattern, not a stable vLLM API.
+
 ## Proven inputs
 
 - Build image: `quay.io/vllm/automation-vllm:cuda-36142158631`
