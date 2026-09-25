@@ -2,6 +2,10 @@
 
 This is the first-run sketch for [INFERENG-11113](https://redhat.atlassian.net/browse/INFERENG-11113): run the preview image built from `doug/diffusion-jev`, verify the OpenAI server, then exercise the upstream example Jev-compatible decision endpoint.
 
+## Upstream origin
+
+The structured-decision support in this preview comes from upstream vLLM [PR #57250 — structured generation mode for DiffusionGemma](https://github.com/vllm-project/vllm/pull/57250), merged as [`1b3b88ec`](https://github.com/vllm-project/vllm/commit/1b3b88ec2b7457aa030db4d0e7d8aaf04f6d0fb8). The Midstream Jev branch is based on upstream nightly `c3f5270270aedf598b5f633088623c194c8f0b6c`, which was verified to contain that merge.
+
 ## Proven inputs
 
 - Build image: `quay.io/vllm/automation-vllm:cuda-36142158631`
