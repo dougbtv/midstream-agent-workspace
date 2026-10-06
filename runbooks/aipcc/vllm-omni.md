@@ -13,6 +13,29 @@ forward (September 2026).
 | `redhat/rhel-ai/rhaiis/pipeline` | Wheel building pipeline (fromager-based) | (no local clone, use `glab` API) |
 | `redhat/rhel-ai/core/infrastructure` | GitLab registry/index definitions | (no local clone, use `glab` API) |
 
+### Git transport for the containers attachment
+
+The `repos/aipcc/containers` checkout uses GitLab SSH, which avoids depending
+on an HTTPS credential helper in non-interactive agent shells:
+
+```bash
+git -C repos/aipcc/containers remote set-url origin \
+  git@gitlab.com:redhat/rhel-ai/rhaiis/containers.git
+git -C repos/aipcc/containers fetch origin 3.6-fast2
+```
+
+Before changing the transport on a new host, verify its GitLab SSH identity and
+repository access without modifying the checkout:
+
+```bash
+ssh -T git@gitlab.com
+git ls-remote --heads \
+  git@gitlab.com:redhat/rhel-ai/rhaiis/containers.git 3.6-fast2
+```
+
+Use `glab api` for GitLab REST queries; Git transport and API authentication are
+separate concerns.
+
 ## AIPCC Commit Conventions
 
 Every commit and MR title **must** follow this format or the linter will fail:
