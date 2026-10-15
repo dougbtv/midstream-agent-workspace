@@ -116,3 +116,59 @@ oc get nodes -l nvidia.com/gpu.product=NVIDIA-B200 \
 For a real vLLM test, start with one GPU and a small model. The existing
 `nm-cicd` OCP model-deployment harness is CI-oriented; a personal project is
 appropriate for user-driven experiments.
+
+## OpenShift-native vLLM deployment pattern
+
+For user-driven work, replace a direct `podman run` recipe with persistent
+OpenShift resources in `dougbtv-dev`:
+
+```text
+Hugging Face token Secret
+          |
+          v
+init container downloads model --> PersistentVolumeClaim (model/HF cache)
+                                      |
+                                      v
+                         vLLM Deployment (one replica on B200)
+                                      |
+                                      v
+                       ClusterIP Service --> oc port-forward (development)
+                                          \-> Route (only for shared access)
+```
+
+The mappings from direct-container flags to OpenShift are:
+
+| Direct host pattern | OpenShift resource/pattern |
+| --- | --- |
+| `podman run` | `Deployment` with one replica |
+| `--device nvidia.com/gpu=all` | `resources.requests/limits.nvidia.com/gpu: N` |
+| bind-mounted Hugging Face cache | PVC mounted at the model/cache path |
+| `--ipc=host` | memory-backed `emptyDir` mounted at `/dev/shm` |
+| host port `8000` | ClusterIP Service and `oc port-forward` |
+| `--rm` | delete the Deployment and PVC when the experiment ends |
+
+Store the Hugging Face token in a Kubernetes Secret, never inline in a
+manifest. An init container should populate the PVC before vLLM starts; mount
+the completed model cache read-only in the server container when feasible. A
+PVC avoids repeated model downloads on Pod restart. A single-node `ReadWriteOnce`
+PVC is sufficient for the initial experiment; shared/multi-node caches need
+deliberate storage design rather than assuming one claim can be mounted
+everywhere.
+
+Start with one B200 and a small model, accessed through:
+
+```bash
+oc port-forward service/<vllm-service> 8000:8000
+curl -fsS http://127.0.0.1:8000/health
+```
+
+Then scale the GPU request and vLLM `--tensor-parallel-size` together (for
+example, 2, 4, or 8) according to model memory requirements. Single-node TP on
+one B200 DGX uses NVLink/NVSwitch; it does not need an RDMA resource request.
+Treat multi-node inference/RDMA as a separate design step.
+
+The `nm-cicd` `neuralmagic/ocp_model_deployment` harness provides an existing
+reference implementation for the PVC-or-`emptyDir`, `/dev/shm`, GPU request,
+Deployment, Service/Route, and health-check pieces. It is designed for
+ephemeral CI validation, so a user-facing deployment should retain those
+primitives but omit CI-specific automatic namespace/resource cleanup.
