@@ -15,7 +15,6 @@ Preview delivery, and the AIPCC product-image path.
 
 ## Context
 
-- `field-guide.md`: architecture and repository relationships
 - `tech-preview.md`: active and historical Tech Preview planning state
 - `3.6-ga.md`: reduced-scope planning for the RHOAI 3.6 GA release train
 - `aipcc-integration.md`: productization architecture and delivery state

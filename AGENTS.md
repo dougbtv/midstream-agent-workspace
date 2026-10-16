@@ -78,7 +78,6 @@ For vLLM work, start with:
 For vLLM-Omni and its downstream image chain, start with:
 
 - `projects/vllm-omni/README.md`
-- `projects/vllm-omni/field-guide.md`
 - `projects/vllm-omni/tech-preview.md`
 - `projects/aipcc/README.md`
 - `runbooks/vllm-omni/build-from-upstream.md`
