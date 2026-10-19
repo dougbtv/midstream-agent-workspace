@@ -204,9 +204,25 @@ into the general deployment recipe.
 until the browser redirect arrives.  Run it from a persistent shell (for
 example, tmux) rather than a short-lived remote command.  If the browser and
 the `oc` host differ, use the SSH callback tunnel above; do not expose an OAuth
-callback URL or one-time code in logs, manifests, or notes.  Re-run `oc whoami`
-before a long-lived monitor assumes it can inspect the cluster: the web SSO
-credential can expire during a model download or image build.
+callback URL or one-time code in logs, manifests, or notes.
+
+During the initial Muse Spark smoke test, repeated login prompts were mostly a
+local orchestration failure: an `oc login --web` listener started from a
+short-lived command was reaped before the browser callback arrived.  The
+credential did not recover magically; authentication succeeded once a
+persistent listener accepted the callback and wrote the result to kubeconfig.
+Do not treat every `system:anonymous` response as an expired SSO token.  First
+check both the current identity and whether the pending local login listener is
+still running:
+
+```bash
+oc whoami
+oc config current-context
+```
+
+Web SSO credentials can still expire during a long model download or image
+build, but use `oc whoami` to prove that before requesting another browser
+login.
 
 ## OpenShift-native vLLM deployment pattern
 
