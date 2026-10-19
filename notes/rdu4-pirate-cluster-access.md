@@ -117,6 +117,97 @@ For a real vLLM test, start with one GPU and a small model. The existing
 `nm-cicd` OCP model-deployment harness is CI-oriented; a personal project is
 appropriate for user-driven experiments.
 
+### Capacity and scheduling visibility
+
+Project-scoped RBAC may allow reading node allocatable capacity while denying
+cross-namespace Pod visibility.  `allocatable: 8` is therefore **not** evidence
+that eight GPUs are free.  Treat the scheduler as the source of truth: make a
+small, deliberately scoped request and inspect its events.
+
+```bash
+oc -n dougbtv-dev get events --sort-by=.lastTimestamp | tail -n 20
+```
+
+For example, `Insufficient nvidia.com/gpu` on the one node selected by a local
+PVC proves only that the requested count is not presently free on that node.
+It does not identify the other consumer.  Scale the test Deployment back to
+zero after an unsuccessful capacity probe so it cannot unexpectedly claim GPUs
+later.
+
+### Local B200 model caches
+
+The `lvms-b200-gpu-ib-tier1-storage` StorageClass is local storage with
+`WaitForFirstConsumer` behavior.  For large model caches, the first Pod that
+uses the claim determines its node placement permanently for that PVC.
+
+For a reproducible model-download flow:
+
+1. Create a `ReadWriteOnce` PVC sized for the complete artifact plus headroom.
+   Muse Spark Open's materialized payload was about 533 GiB; 600 GiB was
+   sufficient in this case.
+2. Run a CPU-only download Job with an explicit
+   `kubernetes.io/hostname: <B200-node>` selector and mount that PVC.
+3. Let the Job complete, then mount the cache read-only in the serving
+   Deployment on the **same** node.
+4. Use a second PVC and second download Job for another B200 node.  Do not try
+   to move or multi-mount the first local/RWO claim.
+
+The downloader used `huggingface_hub.snapshot_download` to materialize the
+model directly under `/models/<model-name>`.  When using an HF token from a
+Secret file, strip its trailing newline before forming an HTTP Authorization
+header; the Hub rejects a token containing that newline.
+
+### GPU Deployment update discipline
+
+GPU requests are held by a crashing or terminating old Pod until it exits.
+The default Deployment rolling-update surge can therefore deadlock a full-node
+test: the replacement cannot schedule because the old ReplicaSet still holds
+the requested GPUs.
+
+For a one-replica B200 smoke Deployment, make image/config changes with this
+sequence:
+
+```bash
+oc -n dougbtv-dev scale deployment/<name> --replicas=0
+oc -n dougbtv-dev rollout pause deployment/<name>
+# patch the template (digest, environment, args, mounts)
+oc -n dougbtv-dev rollout resume deployment/<name>
+oc -n dougbtv-dev scale deployment/<name> --replicas=1
+```
+
+Confirm the old GPU Pod has terminated before expecting the replacement to
+schedule.  Pin images by immutable digest, not a mutable tag; a node can take
+several minutes to pull a new CUDA image even when the earlier tag was cached.
+
+### Runtime-JIT image checklist
+
+Some inference stacks compile CUDA extensions or kernels on their first model
+load.  A runtime image that contains `nvcc`/NVRTC but omits development headers
+can build successfully in CI and still fail on the B200.  In particular, a
+FlashInfer SM100 runtime-JIT compile required `cublasLt.h`, supplied by
+`libcublas-devel` in the UBI CUDA image.
+
+Before declaring a CUDA image suitable for a Blackwell smoke test, verify it
+has the compiler, NVRTC, CUDA headers, and any library-specific development
+headers required by runtime JIT—not merely the shared runtime libraries.
+
+If vLLM dies before model load in a downstream preview image, capture the
+engine-child traceback before changing model flags.  Optional entry-point
+plugins and incomplete Python media packages can fail at import time.  A
+temporary mount-mask can isolate an unrelated package for an experiment, but
+the durable fix belongs in image packaging; do not copy a model-specific mask
+into the general deployment recipe.
+
+### Headless SSO caveat
+
+`oc login --web` is interactive and its callback listener must remain alive
+until the browser redirect arrives.  Run it from a persistent shell (for
+example, tmux) rather than a short-lived remote command.  If the browser and
+the `oc` host differ, use the SSH callback tunnel above; do not expose an OAuth
+callback URL or one-time code in logs, manifests, or notes.  Re-run `oc whoami`
+before a long-lived monitor assumes it can inspect the cluster: the web SSO
+credential can expire during a model download or image build.
+
 ## OpenShift-native vLLM deployment pattern
 
 For user-driven work, replace a direct `podman run` recipe with persistent
