@@ -1,17 +1,60 @@
 # vLLM-Omni AIPCC How-To
 
 Working notes for interacting with the AIPCC GitLab repos for vllm-omni
-containerization. Based on the INFERENG-9465 work (July 2026), with the
-release-branch coordination workflow last verified during the 3.6-fast2 carry
-forward (September 2026).
+containerization. Based on the INFERENG-9465 work (July 2026), with the wheel
+and container migration boundary reverified during the RHOAI 3.6 GA
+`vllm-omni==0.30.0+rhaiv.2` delivery (October 2026).
 
 ## Repos and What They Do
 
 | Repo | Purpose | Local Clone |
 |------|---------|-------------|
 | `redhat/rhel-ai/rhaiis/containers` | Containerfiles, build-args, renovate config | `repos/aipcc/containers/` |
-| `redhat/rhel-ai/rhaiis/pipeline` | Wheel building pipeline (fromager-based) | (no local clone, use `glab` API) |
+| `redhat/rhel-ai/wheels/fondue` | Current wheel builder, RHAIIS collections, base-image inputs, Pulp publication | (no attached clone; use `glab` API) |
+| `redhat/rhel-ai/rhaiis/pipeline` | Superseded wheel pipeline; consult only for legacy release branches and package history | `repos/aipcc/pipeline/` |
 | `redhat/rhel-ai/core/infrastructure` | GitLab registry/index definitions | (no local clone, use `glab` API) |
+
+## Current Delivery Boundary: Fondue vs Containers
+
+Fondue consolidated the former builder and `rhaiis/pipeline` wheel workflow.
+Current RHAI 3.6 CUDA wheels are published to Pulp channels such as:
+
+```text
+https://packages.redhat.com/api/pypi/public-rhai/cuda13.0-torch2.13-el9.8-test/simple/
+https://packages.redhat.com/api/pypi/public-rhai/cuda13.0-torch2.13-el9.8/simple/
+```
+
+The `-test` channel is candidate/build input. The channel without `-test` is
+the promoted production channel. A package in the test index proves wheel
+publication, not production promotion or container delivery.
+
+As of the October 2026 3.6 GA work, vLLM-Omni is at a migration boundary:
+
+- Fondue builds and publishes the current wheel stack to Pulp.
+- The Omni container on `main` still uses the legacy `WHEEL_RELEASE_*`,
+  `vllm-omni-wheels`, and `install-wheel-release.sh` path.
+- `context/vllm-omni/{pyproject.toml,requirements.txt}` is preparation for the
+  hermetic consumer, but is not the installed image input until the Containerfile
+  and PipelineRuns are converted.
+- [RHAI-10889](https://redhat.atlassian.net/browse/RHAI-10889) owns the actual
+  hashed-lock/Cachi2/offline conversion for both architectures.
+
+Therefore, do not wait for a legacy wheel-release Renovate MR after a Fondue
+Pulp publication and do not infer image delivery from a generated context lock.
+First determine which installer the live Containerfile uses.
+
+For the selected v0.30.0 Omni line, preserve the exact pair in every Fondue
+collection, container manifest, generated lock, and installed-image check:
+
+```text
+vllm-omni==0.30.0+rhaiv.2
+vllm==0.30.0+rhaiv.0
+```
+
+Renovate tracks these independently and can propose a mismatched pair. Reject
+or repair any update that drops the `+rhaiv.N` suffix or advances only one side.
+An October 2026 example proposed `vllm-omni==0.30.0` while retaining
+`vllm==0.26.0+rhaiv.10`; that is dependency discovery, not a releasable update.
 
 ### Git transport for the containers attachment
 
@@ -71,7 +114,7 @@ glab api "projects/redhat%2Frhel-ai%2Frhaiis%2Fcontainers/pipelines/<PIPELINE_ID
 glab api "projects/redhat%2Frhel-ai%2Frhaiis%2Fcontainers/jobs/<JOB_ID>/trace" | tail -60
 ```
 
-## Containers Repo: File Layout for a New Collection
+## Containers Repo: File Layout
 
 vllm-omni follows the `model-opt` pattern with dot-separated names:
 
@@ -79,14 +122,17 @@ vllm-omni follows the `model-opt` pattern with dot-separated names:
 containers/
   Containerfile.vllm-omni.cuda-ubi9       # the Containerfile
   build-args.vllm-omni/
-    cuda-ubi9.conf                         # build args (wheel releases, base image)
-  renovate.json                            # auto-update config for wheel releases
+    cuda-ubi9.conf                         # base image plus legacy or hermetic mode inputs
+  context/vllm-omni/
+    pyproject.toml                         # direct package contract used to generate locks
+    requirements.txt                      # generated hash-pinned multi-arch export
+  renovate.json                            # base image and dependency automation
   .tekton/
     rhaiis-vllm-omni-cuda-ubi9-on-pull-request.yaml
     rhaiis-vllm-omni-cuda-ubi9-on-push.yaml
 ```
 
-### build-args conf file
+### Legacy build-args conf file
 
 ```ini
 BASE_IMAGE=quay.io/aipcc/base-images/cuda-13.0-el9.8:3.6.0-ea.1-1787782448
@@ -99,13 +145,26 @@ WHEEL_RELEASE_X86_64=3.6-fast1.3898+vllm-omni-cuda13.0-ubi9-x86_64
 
 ### Containerfile key patterns
 
-- `ARG WHEEL_RELEASE_AARCH64` and `ARG WHEEL_RELEASE_X86_64` declared at top
-- Both referenced in the `com.redhat.aiplatform.wheel_release` label
+- Legacy: `ARG WHEEL_RELEASE_AARCH64` and `ARG WHEEL_RELEASE_X86_64`, with
+  `install-wheel-release.sh` and a private package-registry credential.
+- Hermetic target: Cachi2-prefetched, hash-pinned requirements installed with
+  the shared offline installer and no runtime package-index access.
 - Entrypoint for omni: `ENTRYPOINT ["python3", "-m", "vllm_omni.entrypoints.openai.api_server", "--omni"]`
 - No chat templates (that's standard vllm, not omni)
 - No tiktoken pre-download (that's gpt-oss, not omni)
-- `espeak-ng` is installed with `dnf`; the Konflux build service account has the
-  subscription access needed for this step
+- `espeak-ng` must come from the approved CUDA base-image RPM lock. Do not
+  restore an online `dnf install` in the hermetic container.
+
+Before changing package pins, compare all four of these as one contract:
+
+1. `BASE_IMAGE` Torch/CUDA line;
+2. the base image's `com.redhat.aiplatform.index_url` label;
+3. `context/vllm-omni/pyproject.toml` direct pins;
+4. the generated `context/vllm-omni/requirements.txt` hashes for x86_64 and
+   aarch64.
+
+A Torch 2.13 Fondue wheel cannot be consumed by leaving the Omni container on
+its Torch 2.11 base and legacy EA1 wheel release.
 
 ## Release-Branch Productization Changes and MR Ordering
 
@@ -360,9 +419,9 @@ Do not infer the AIPCC tag from the Snapshot timestamp. Read it from
 - Outcome: managed and final release pipelines succeeded; formal OCP model
   validation was then dispatched against the immutable AIPCC image.
 
-## Pipeline Repo: Wheel Builds
+## Fondue: Wheel Builds and Pulp Publication
 
-The pipeline repo builds wheels using fromager. Jobs follow this sequence:
+Fondue builds wheels using Fromager. Relevant RHAIIS jobs follow this sequence:
 
 ```
 bootstrap-and-onboard -> build-wheels -> publish-wheels -> release-tarball
@@ -370,24 +429,47 @@ bootstrap-and-onboard -> build-wheels -> publish-wheels -> release-tarball
 
 - `bootstrap-and-onboard`: resolves deps, takes ~1 hour
 - `build-wheels`: compiles everything, takes 4-6+ hours
-- `publish-wheels`: uploads to GitLab PyPI registry
-- `release-tarball`: creates the release tag (this is what we reference in `WHEEL_RELEASE_*`)
+- `publish-wheels`: publishes to the collection's Pulp test channel
+- `release-tarball`: creates a diagnostic/export artifact; it is not the
+  current container dependency selector
 
 ### Checking wheel build status
 
 ```bash
-# List jobs, filter for omni
-glab api "projects/redhat%2Frhel-ai%2Frhaiis%2Fpipeline/pipelines/<ID>/jobs?per_page=100&scope=running" \
-  | python3 -c "import json,sys; jobs=json.load(sys.stdin); [print(f\"{j['status']:12s} {j['name']}\") for j in sorted(jobs, key=lambda x: x['name']) if 'omni' in j['name'].lower()]"
+# List CUDA 12.9/13.0 Torch 2.13 jobs across all pages.
+PROJECT='redhat%2Frhel-ai%2Fwheels%2Ffondue'
+PIPELINE='<PIPELINE_ID>'
+
+for PAGE in 1 2 3; do
+  glab api "projects/${PROJECT}/pipelines/${PIPELINE}/jobs?per_page=100&page=${PAGE}&include_retried=true"
+done | jq -s 'add
+  | .[]
+  | select(.name | test("^rhaiis-cuda(12\\.9|13\\.0)-torch2\\.13"))
+  | [.status, .name, .web_url]
+  | @tsv' -r
+
+# Ground truth: query the actual package indexes.
+for CHANNEL in cuda12.9-torch2.13-el9.8-test cuda13.0-torch2.13-el9.8-test; do
+  curl -fsSL \
+    "https://packages.redhat.com/api/pypi/public-rhai/${CHANNEL}/simple/vllm-omni/" \
+    | rg '0\.30\.0(\+|%2B)rhaiv\.2'
+done
 ```
+
+Do not search only the old GitLab generic package registry. Fondue/Pulp wheels
+can be successfully published while no new `vllm-omni-wheels` generic package
+appears.
 
 ### Known issues
 
 - **GitLab upload timeouts**: `flashinfer-jit-cache` is a large wheel that can timeout during upload. Retry usually works.
-- **Pipeline cancellation on merge**: merging any MR to main cancels the running pipeline and starts a new one. Coordinate with the team to avoid interrupting long builds.
+- **Pipeline cancellation on merge**: a newer push can cancel a long `main`
+  pipeline after some architecture-specific build/publish jobs have already
+  succeeded. Read the individual jobs and then query the Pulp index; the parent
+  pipeline's terminal state alone can under- or overstate publication.
 - Wheel cache is preserved across retries -- previously built wheels don't need rebuilding.
 
-## Infrastructure Repo: Creating Indexes
+## Infrastructure Repo: Creating Indexes (Legacy Reference)
 
 Before the pipeline can build wheels for a new collection, the GitLab registry indexes must exist. These are defined in `data/products/rhaiis.yml` in the infrastructure repo.
 
@@ -403,21 +485,26 @@ Before the pipeline can build wheels for a new collection, the GitLab registry i
 
 Without these indexes, the pipeline hits a 404 on `get-project-id`.
 
-## Cutting a Midstream Tag (Tag-to-Wheels Flow)
+## Cutting a Midstream Tag (Current Tag-to-Image Flow)
 
 A midstream tag on the enterprise fork signals "this code is validated and ready to ship." Pushing it kicks off an automated chain that ends with container images.
 
 ### The chain
 
 ```
-GitHub tag pushed (e.g. v0.26.0+rhaiv.0 on nm-vllm-omni-ent)
+GitHub tag pushed on nm-vllm-omni-ent and the paired nm-vllm-ent line
   → GitLab mirror syncs tag (usually within 30-60 min)
-    → Renovate detects new tag, opens MR on rhaiis/pipeline to bump requirements.txt
-      → Pipeline MR merged → wheel collection built + released
-        → Renovate detects new wheel release, opens MR on rhaiis/containers to bump build-args
-          → Containers MR merged into the release branch
-            → component-scoped containers tag pushed → Konflux builds the release image
+    → Fondue collection MR pins the explicit pair
+      → Fondue bootstrap/build/publish puts wheels in Pulp test channels
+        → Hermetic container manifest/lock is updated to the same explicit pair
+          → Containers MR builds both architectures through Konflux
+            → component-scoped containers tag creates the release image
+              → Pulp/image promotion and runtime validation complete the handoff
 ```
+
+The legacy path—Renovate bumping `WHEEL_RELEASE_*` after a generic package
+release—applies only while a release branch deliberately retains the old
+installer. It is not the expected end state for `main` after RHAI-10889.
 
 ### How to cut the tag
 
@@ -453,20 +540,24 @@ After pushing the tag, check each step of the chain:
 glab api "projects/redhat%2Frhel-ai%2Fcore%2Fmirrors%2Fgithub%2Fneuralmagic%2Fnm-vllm-omni-ent/repository/tags?search=v0.26" \
   | python3 -c "import json,sys; tags=json.load(sys.stdin); [print(t['name']) for t in tags]"
 
-# Step 2: Has Renovate opened a pipeline MR?
-glab mr list -R redhat/rhel-ai/rhaiis/pipeline | grep -i omni
+# Step 2: Has a Fondue collection MR pinned the exact pair?
+glab mr list -R redhat/rhel-ai/wheels/fondue | rg -i 'vllm.*omni|omni.*vllm'
 
-# Step 3: Once pipeline MR is merged, check for new wheel releases
-glab api "projects/redhat%2Frhel-ai%2Frhaiis%2Fpipeline/releases?per_page=10" \
-  | python3 -c "import json,sys; [print(r['tag_name'],'—',r['created_at'][:10]) for r in json.load(sys.stdin) if 'omni' in r['tag_name']]"
+# Step 3: Check the test-channel package pages directly.
+curl -fsSL \
+  'https://packages.redhat.com/api/pypi/public-rhai/cuda13.0-torch2.13-el9.8-test/simple/vllm-omni/' \
+  | rg '0\.30\.0(\+|%2B)rhaiv\.2'
+curl -fsSL \
+  'https://packages.redhat.com/api/pypi/public-rhai/cuda13.0-torch2.13-el9.8-test/simple/vllm/' \
+  | rg '0\.30\.0(\+|%2B)rhaiv\.0'
 
-# Step 4: Has Renovate opened a containers MR to bump build-args?
-glab mr list -R redhat/rhel-ai/rhaiis/containers | grep -i omni
+# Step 4: Inspect both generated dependency MRs and the actual conversion MR.
+glab mr list -R redhat/rhel-ai/rhaiis/containers | rg -i 'omni|10889|hermetic'
 ```
 
 Mirror sync typically takes 30-60 minutes. Renovate runs on a schedule (not instant) — could be a few hours before it opens MRs.
 
-### What Renovate watches (RHAIIS pipeline repo)
+### What Renovate watches (historical RHAIIS pipeline repo)
 
 The `renovate.json` in `rhaiis/pipeline` has two custom regex managers relevant to omni:
 
@@ -488,9 +579,12 @@ vllm-omni==0.26.0+rhaiv.0    ← tag on nm-vllm-omni-ent
 vllm==0.26.0+rhaiv.0          ← tag on nm-vllm-ent
 ```
 
-Renovate tracks them independently via separate custom managers. You may need to coordinate — if only one tag exists, Renovate will open an MR that bumps one but not the other.
+Renovate tracks them independently via separate managers. You must coordinate
+them: if only one tag exists, automation can propose a one-sided or suffix-free
+update. Validate the selected pair in the source collection, generated lock,
+and built image rather than trusting the MR title.
 
-## Renovate Config
+## Renovate Config (Legacy Wheel Releases)
 
 The `renovate.json` in the containers repo auto-updates wheel release versions. For a new collection, add three entries per arch:
 
@@ -499,6 +593,10 @@ The `renovate.json` in the containers repo auto-updates wheel release versions. 
 3. `RHAIIS_VERSION` extractor
 
 Also add the conf file to the `cuda` packageRules group so updates are grouped together.
+
+For the hermetic path, Renovate may update `context/vllm-omni/pyproject.toml`,
+but the change is incomplete until the exact paired pins are reviewed, the
+multi-architecture lock is regenerated, and the real consumer build passes.
 
 ## Cherry-Picking from Forks
 
