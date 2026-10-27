@@ -16,6 +16,8 @@ the dashboard, and accelerator integrations.
 
 ## Context
 
+- `3.5.4-z-stream.md`: RHAIIS 3.5.4 z-stream release map, schedule, and
+  discovery log
 - `ci-performance-and-evaluation.md`: data flow, repository responsibilities,
   and current evaluation direction
 - `ci-speed-optimization.md`: time-to-signal research and planning snapshot
