@@ -223,7 +223,7 @@ curl -s -X POST \
 
 ## Gotchas
 
-- **Run Jira mutations from the Gateway host shell:** the host shell receives the managed Jira credential environment; native/sandbox shells may not. Before mutating an issue, prove both identity and ticket visibility with `jira me` and `jira issue view INFERENG-XXXX --plain`. A successful `jira me` does not guarantee access to every ticket: a Jira 404 can still indicate a project/issue permission problem and must be reported rather than retried through another shell blindly.
+- **Run Jira mutations from the Gateway host shell and source `.bashrc`:** non-interactive host-shell commands do not automatically source `~/.bashrc`, where the Jira credential environment is initialized. Prefix Jira commands with `source "$HOME/.bashrc"` (for example, `bash -lc 'source "$HOME/.bashrc"; jira issue view INFERENG-XXXX --plain'`). Native/sandbox shells may not have the required credentials. Before mutating an issue, prove both identity and ticket visibility with `jira me` and `jira issue view INFERENG-XXXX --plain`. A successful `jira me` does not guarantee access to every ticket: a Jira 404 can still indicate a project/issue permission problem and must be reported rather than retried through another shell blindly.
 - **Jira CLI version:** must be v1.7.0+ — v1.6.0 uses a deprecated search API (`/rest/api/2/search`) that returns 410 Gone
 - **Component filter is essential:** without `-C "INFERENG Midstream"`, results include tickets from other components that aren't on the kanban board
 - **Status names are exact:** "Closed" not "Done", "Review" not "In Review"
