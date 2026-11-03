@@ -372,6 +372,14 @@ Snapshot. A successful `Release` for that Snapshot contains the final
 `quay.io/aipcc/` image names. The GitLab commit-status description provides the
 Snapshot name; use it to find the corresponding Release:
 
+**Use the published AIPCC runtime image for `nm-cicd` OCP validation.** Do not
+pass the intermediate Konflux tenant image under
+`quay.io/redhat-user-workloads/ai-tenant/...` to the workflow. That image is a
+valid build output, but the `nm-cicd` validation credential is not generally
+authorized to inspect or pull that tenant repository. A `VALIDATE_IMAGE`
+failure on the tenant reference is therefore an access-boundary failure, not a
+container-runtime result.
+
 ```bash
 SNAPSHOT='rhaiis-3-6-fast1-20260902-144634-000-3h'
 
@@ -399,12 +407,25 @@ oc get release "${RELEASE}" -n ai-tenant -o json \
 The URL list contains several related artifacts:
 
 - `:<version>-<timestamp>` is the immutable runtime image to use for validation
-  and the Productization handoff.
+  and the Productization handoff. Pass this reference (preferably pinned to the
+  matching digest) to `nm-cicd`.
 - `:<version>` is a moving release alias.
 - Tags ending in `-source` and `.src` are source artifacts, not runtime images.
 
 Do not infer the AIPCC tag from the Snapshot timestamp. Read it from
 `.status.artifacts.images[].urls`; the release service generates the final tag.
+
+Record both the timestamped URL and its digest before dispatching validation:
+
+```bash
+IMAGE='quay.io/aipcc/rhaiis-vllm-omni/cuda-ubi9:<version>-<timestamp>'
+skopeo inspect "docker://${IMAGE}" \
+  | jq -r '.Digest'
+```
+
+The resulting `IMAGE` is the validation input; the tenant-registry reference
+is only useful for following the build before the Release has published its
+artifact.
 
 ### 6. Proven corrected `3.6-fast1` example
 
@@ -418,6 +439,32 @@ Do not infer the AIPCC tag from the Snapshot timestamp. Read it from
 - Digest: `sha256:39dd7f54f3d3dd81f1ddd7a8399ad997c3dabf1c83f162776d468c224bc0e67d`
 - Outcome: managed and final release pipelines succeeded; formal OCP model
   validation was then dispatched against the immutable AIPCC image.
+
+### 7. 3.6 GA example: recover the validation image after a tag build
+
+For INFERENG-11902, the component tag
+`vllm-omni-cuda-v2026110301` built commit
+`03ae19921a42eb53ca09c3b1cddcdcfe912a9426`. Konflux first exposed the tenant
+candidate:
+
+```text
+quay.io/redhat-user-workloads/ai-tenant/rhaiis-3-6/
+  rhaiis-vllm-omni-cuda-ubi9-3-6:03ae19921a42eb53ca09c3b1cddcdcfe912a9426
+```
+
+That was **not** suitable for `nm-cicd`. Its release object instead published
+the validation-ready artifact:
+
+```text
+quay.io/aipcc/rhaiis-vllm-omni/cuda-ubi9:3.6.0-1793738110
+sha256:0c53e9e51c41396e1349a530527927313366b0cae8dcfb45477f723935a1553f
+```
+
+The timestamp (`1793738110`) was read from the Release artifact URL, not
+derived from the tag, source SHA, Snapshot timestamp, or PipelineRun name. The
+published image cleared `nm-cicd`'s image-authentication gate; the tenant
+candidate did not. Treat this sequence as the standard lookup pattern for
+future validation requests.
 
 ## Fondue: Wheel Builds and Pulp Publication
 
