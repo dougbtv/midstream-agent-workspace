@@ -122,30 +122,34 @@ Pass via `chat_template_kwargs.reasoning_effort` or top-level OpenAI `reasoning_
 - **8x MI325X** (v0.29.0): 1,477,168-token KV cache, 2.82x max concurrency, MTP mean acceptance 2.77 (5 tokens drafted).
 - **8x MI350X** (v0.29.0): 2,013,072-token KV cache, 3.84x max concurrency, MTP mean acceptance 3.19.
 
+### Decision: start on v0.31.0_rhaiv.5
+
+v0.31.0 was released Oct 5. PR #62424 (native GLM5Next tokenizer) merged Oct 19.
+Assume it is **not** cherry-picked into rhaiv.5. The fallback `--tokenizer-mode auto`
+works without #62424 — it uses the HuggingFace/MiniJinja renderer instead of the
+fast Rust path. Slower prompt processing, but the model loads and serves.
+
+v0.31.0 release notes confirm GLM-5.3 model architecture support is in
+(GLM-5.3-Flash Quark MXFP4 #56176, GLM-5.2-MXFP4 ROCm #51915). The missing piece
+is just the native `glm5_next` renderer, which is an optimization, not a gate.
+
+Skip 0.28.0 — no point testing on an image that predates the architecture support.
+
+`v0.31.0_rhaiv.5.rubin` is likely a next-gen NVIDIA (Rubin) variant — skip it.
+
 ### Phase plan
 
-#### Phase 1: Try on current image (0.28.0_rhaiv.5.rocm714)
+#### Phase 1: Deploy on v0.31.0_rhaiv.5 (current target)
 
-The current image predates PR #62424. Fallback path for builds without `glm5_next`:
+Image: `quay.io/vllm/vllm-rocm:v0.31.0_rhaiv.5`
 
-- Replace `--tokenizer-mode glm5_next` with `--tokenizer-mode auto`
-- Omit `VLLM_USE_RUST_FRONTEND=1` (Rust binary likely absent)
-- Update model → `zai-org/GLM-5.3`
-- Update reasoning-parser → `glm47`
-- Add `VLLM_ROCM_USE_AITER=1` env var
-- Keep everything else identical
+Try `--tokenizer-mode glm5_next` + `VLLM_USE_RUST_FRONTEND=1` first. If the image
+rejects `glm5_next` (renderer not present without #62424 cherry-pick), fall back to:
+- `--tokenizer-mode auto`
+- Omit `VLLM_USE_RUST_FRONTEND=1`
+- Everything else stays the same
 
-If it loads and serves: great, config-only change. If the architecture isn't recognized, we move to Phase 2.
-
-#### Phase 2: Jump to v0.31.0_rhaiv.5
-
-Available on Quay: `v0.31.0_rhaiv.5` (Oct 27) and `v0.31.0_rhaiv.5.rubin` (Oct 30).
-
-This should include PR #62424 and the Rust frontend binary. Use the full recipe config with `--tokenizer-mode glm5_next` and `VLLM_USE_RUST_FRONTEND=1`.
-
-Verify the image has the ROCm 7.14 stack or check what ROCm version it bundles (the tag dropped the `.rocm714` suffix).
-
-#### Phase 3: DSpark speculative (optional)
+#### Phase 2: DSpark speculative (optional)
 
 If MTP acceptance is underwhelming, try DSpark with 8 speculative tokens using `RedHatAI/GLM-5.3-speculator.dspark`:
 
