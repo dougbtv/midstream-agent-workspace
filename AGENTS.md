@@ -83,6 +83,25 @@ For vLLM-Omni and its downstream image chain, start with:
 - `runbooks/vllm-omni/build-from-upstream.md`
 - `runbooks/aipcc/vllm-omni.md`
 
+### Hermetic lock regeneration without base-image registry access
+
+When regenerating a hermetic container lock, the normal resolver source is the
+base image's `com.redhat.aiplatform.index_url` label. If the local environment
+does not have permission to inspect that protected base image, use the known
+approved Pulp channel explicitly:
+
+```bash
+uv run --project context/scripts -- context/scripts/gen-lock.py \
+  --project context/<component> \
+  --index-url 'https://packages.redhat.com/api/pypi/public-rhai/<channel>/simple/'
+```
+
+Found it: `gen-lock.py --index-url` is the credential-free override for
+precisely this case. It is for local regeneration and investigation only; do
+not use it to bypass the CI `--check` contract. CI intentionally derives the
+index from the selected base-image label, so a final production lock still
+requires a base image whose label names the approved production Pulp channel.
+
 For shared operations, use:
 
 - `skills/jira-board/SKILL.md`
