@@ -166,6 +166,39 @@ Before changing package pins, compare all four of these as one contract:
 A Torch 2.13 Fondue wheel cannot be consumed by leaving the Omni container on
 its Torch 2.11 base and legacy EA1 wheel release.
 
+### Production versus test base-image labels
+
+An image name or a release-looking Quay tag does **not** establish which Pulp
+channel the image is for. The authoritative value is the base image's
+`com.redhat.aiplatform.index_url` label; the hermetic lock verifier reads that
+label and requires it to match the committed `--index-url` export.
+
+For a final production RC, the CUDA13/Torch2.13 base must advertise:
+
+```text
+https://packages.redhat.com/api/pypi/public-rhai/cuda13.0-torch2.13-el9.8/simple/
+```
+
+It must not advertise the otherwise similar `...el9.8-test/simple/` channel.
+Resolve this before regenerating a final lock, because the test channel can
+lack a promoted respin even when the production channel contains it.
+
+Discover candidate production base releases in the Fondue repository:
+
+1. production base releases are created from protected `release/trailing` as
+   `base-vYYYYMMDD##` tags;
+2. the successful Konflux build publishes the immutable Quay tag consumed by
+   `build-args.vllm-omni/cuda-ubi9.conf`;
+3. verify the published image label with the privileged CI lock check (or
+   `skopeo inspect` when authorized) before adopting it.
+
+The Fondue source configuration's `INDEX_STAGE` is useful evidence of the
+intended channel, but the published image label is the final authority. If
+local Quay inspection is unavailable, use
+`gen-lock.py --index-url <approved-channel>` for local generation only. Do not
+teach CI that override: its normal label-derived check prevents a production
+lock from being paired with a test-index base image.
+
 ## Release-Branch Productization Changes and MR Ordering
 
 AIPCC Productization may open a broad release-branch MR that updates the
