@@ -1,5 +1,31 @@
 # GLM-5.x Deployment Notes
 
+## GLM-5.3 cutover progress (2026-11-06)
+
+The reversible cutover is underway on the verified IBM MI300X cluster.
+
+| Item | Current state |
+|------|---------------|
+| Preserved fallback | `glm-5-2-vllm` is scaled to **0**; `glm-5-2` Helm release revision 17 and both 5.2 PVCs remain intact. |
+| New release | `glm-5-3`, Helm revision 3, scheduled on `sndgpuasw-mi300x-2` with 8 AMD GPUs. |
+| Image | `quay.io/vllm/automation-vllm:rocm-40752177506`, proven by the 5.2 runtime as vLLM `0.31.1.dev1+rhaiv.5`. |
+| Storage | Preloaded `glm-5-3-fp8-pvc` (800Gi) and new `glm-5-3-vllm-cache-pvc` (10Gi), both `lvms-vg1`. |
+| Model cache | Offline cache snapshot `ba32f8c19c8738e2c57c71798c601d477a7bf844` is being used; no weight download during serving startup. |
+| Current startup | Pod is Running with one historical restart from the initial KV-cache sizing failure; the retry is loading the MTP drafter. It is **not ready yet**. |
+
+### Applied deployment fixes
+
+1. The image lacks the optional `vllm-rs` binary, so `VLLM_USE_RUST_FRONTEND=1`
+   failed with `FileNotFoundError`. The deployed config uses `tokenizer-mode: auto`
+   and omits that env var.
+2. At `gpu-memory-utilization: 0.80`, a `max-model-len` of 524288 required
+   23.64GiB KV cache while only 23.56GiB was available. The retry uses
+   `max-model-len: 522000` rather than raising utilization.
+
+Source changes are on [PR #184](https://github.com/neuralmagic/rhaiis-midstream-snippets/pull/184):
+`f8001b4` (proven image), `9b0f744` (tokenizer fallback), and `1505b3a`
+(MI300X KV-cache sizing).
+
 ## Current State: GLM-5.2-FP8 on MI300X
 
 **Deployment YAML:** `rhaiis-midstream-snippets/charts/deployments/glm-5-2-fp8-mi300x.yml`
