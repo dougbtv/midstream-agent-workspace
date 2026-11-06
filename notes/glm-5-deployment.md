@@ -5,11 +5,61 @@
 **Deployment YAML:** `rhaiis-midstream-snippets/charts/deployments/glm-5-2-fp8-mi300x.yml`
 **Model cache setup:** `rhaiis-midstream-snippets/charts/deployments/glm-5-2-setup-model-cache.sh`
 
+### Verified live inventory (2026-11-06)
+
+The actual serving cluster is the IBM Cloud MI300X OpenShift cluster, not the
+retired Azure AMD-02 cluster documented in older `nm-cicd` material.
+
+| Field | Verified value |
+|-------|----------------|
+| API server | `https://api.sndgpuasw.cat.mvbp-cloud.com:6443` |
+| Namespace | `rhaiis-midstream` |
+| Helm release | `glm-5-2`, revision 17 (`deployed`) |
+| Deployment | `glm-5-2-vllm`, `Recreate`, 1 replica |
+| Runtime image | `quay.io/vllm/automation-vllm:rocm-40752177506` |
+| Current pod/node | `glm-5-2-vllm-f58b7775-sl8c7` on `sndgpuasw-mi300x-2` |
+| GPU allocation | 8 × `amd.com/gpu` (all GPUs on node 2) |
+| Model PVC | `glm-5-2-fp8-pvc`, 800Gi, `lvms-vg1`, Bound |
+| vLLM cache PVC | `glm-5-2-vllm-cache-pvc`, 10Gi, `lvms-vg1`, Bound |
+| Route | `https://glm-5-2.apps.sndgpuasw.cat.mvbp-cloud.com` |
+| Service account | `vllm-anyuid-sa` |
+
+The other MI300X node is not spare: `qwen3-5-397b-vllm` uses 4 of 8 GPUs on
+`sndgpuasw-mi300x-1`. Therefore GLM-5.3 cannot run in parallel with GLM-5.2;
+the cutover must free node 2 first.
+
+### Reversible GLM-5.2 → GLM-5.3 cutover
+
+Keep the `glm-5-2` Helm release and both of its PVCs. Do **not** uninstall it:
+that preserves the known-good deployment definition, release history, and model
+cache for rollback.
+
+1. Scale `glm-5-2-vllm` to zero. This releases all eight GPUs on
+   `sndgpuasw-mi300x-2` without deleting the deployment or PVCs.
+2. Install GLM-5.3 as a distinct Helm release with its own route and
+   `glm-5-3-fp8-pvc`. With node 1 retaining only four free GPUs, its 8-GPU pod
+   can schedule only on node 2.
+3. Validate the GLM-5.3 route, `/health`, `/v1/models`, and chat completion.
+4. If the test fails, scale GLM-5.3 to zero and restore GLM-5.2 to one replica.
+
+The core rollback commands are:
+
+```bash
+oc scale deployment/glm-5-2-vllm -n rhaiis-midstream --replicas=0
+# deploy and validate the separate GLM-5.3 release
+# on failure: scale the GLM-5.3 deployment to zero first
+oc scale deployment/glm-5-2-vllm -n rhaiis-midstream --replicas=1
+```
+
+The checked-in GLM-5.2 values file is useful historical configuration, but its
+image tag is not the live runtime image above; use the live inventory as the
+restore source of truth.
+
 ### Current config
 
 | Field | Value |
 |-------|-------|
-| Image | `quay.io/vllm/vllm-rocm:0.28.0_rhaiv.5.rocm714` |
+| Image | See verified runtime image above; the historical values file lists `quay.io/vllm/vllm-rocm:0.28.0_rhaiv.5.rocm714` |
 | Model | `zai-org/GLM-5.2-FP8` |
 | Hardware | 8x MI300X (192GB each), tensor-parallel-size 8 |
 | Model cache PVC | 800Gi (`lvms-vg1`) |
