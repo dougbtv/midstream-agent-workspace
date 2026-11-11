@@ -299,6 +299,62 @@ bash -c 'source ~/.bashrc; curl -s -X PUT \
 
 Without this, issues won't appear correctly on the kanban board.
 
+## SME Label Triage (ms-* workstreams)
+
+Doug is the SME for the `ms-upstream` label and the newer `ms-omni` label
+(omni-specific work). The full workstream label set: `ms-infra`, `ms-release`,
+`ms-mv`, `ms-ci`, `ms-modelopt`, `ms-agentic`, `ms-other`, `ms-upstream`,
+`ms-omni`.
+
+**One primary workstream label per item.** Pick the single bucket where the
+staffing help is needed — e.g. omni-upstream items get `ms-omni`, not
+`ms-upstream` — because the triage view groups by label and multi-labeling
+makes groups noisy.
+
+**Always scope label work to the team.** Every SME label query and every
+labeling action must include `AND component = 'INFERENG Midstream'`. Omni and
+upstream work owned by other teams (e.g. Alex Brooks' non-midstream omni
+items) is out of scope — the component filter is the boundary. Verified
+2026-11-11: of 21 unlabeled omni items project-wide, exactly 1 carried the
+Midstream component.
+
+**Exclude dead weight in working views.** The full label set holds hundreds
+of Closed items; triage queries should always carry `AND status not in
+(Closed)`.
+
+### The SME triage / staffing queue
+
+```bash
+# Items needing assignment — what to bring to "SME Backlog Prep"
+acli jira workitem search \
+  --jql "project = INFERENG AND labels in (ms-upstream, ms-omni) AND component = 'INFERENG Midstream' AND status in (New, Backlog) AND assignee is EMPTY ORDER BY rank ASC" \
+  --limit 50 --fields "key,issuetype,status,priority,summary,labels"
+```
+
+- `rank` is `customfield_10019` (the browser list view orders by `cf[10019]
+  ASC`). `ORDER BY rank ASC` in JQL matches it. `rank` itself is not
+  requestable in `--fields`.
+- `labels` is NOT in the default search field set — request it explicitly in
+  `--fields` or label data silently won't come back.
+
+### Label discovery and edits
+
+- **Text search is unreliable for finding workstream items**: JQL `summary ~
+  'omni'` does not match "vLLM-Omni" (hyphenation tokenization). Discover
+  work by epic children instead: `"Epic Link" = INFERENG-1234` or
+  `parent = INFERENG-1234`, then label the stories that need staffing.
+- **Add a label:**
+  `acli jira workitem edit --key INFERENG-XXXX --labels "ms-omni" --yes`
+- **Remove a label:**
+  `acli jira workitem edit --key INFERENG-XXXX --remove-labels "ms-omni" --yes`
+- **Bulk edit by JQL:**
+  `acli jira workitem edit --jql "<query>" --labels "ms-omni" --yes --ignore-errors`
+  Bulk label edits replace the label set — verify what the target items
+  already carry before running, and prefer explicit `--key` lists over broad
+  JQL for anything destructive.
+- Labels are also settable at create time via `additionalAttributes`
+  (`"labels": ["ms-omni"]`).
+
 ## Gotchas
 
 - **ADF not Markdown:** `##` and `**bold**` render as literal characters.
@@ -317,3 +373,6 @@ Without this, issues won't appear correctly on the kanban board.
 - **acli auth is separate from go-jira:** acli stores its own api_token
   (expires ~3 months). If acli 401s, re-auth with `acli jira auth login`.
 - **Validate every ADF JSON file** with python3 before sending it.
+- **SME label work is component-scoped:** never label, triage, or close work
+  outside `component = 'INFERENG Midstream'` — check the component first via
+  REST (view hides it).

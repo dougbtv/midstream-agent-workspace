@@ -1,6 +1,6 @@
 ---
 name: jira-board
-description: "Inspect and manage Doug's INFERENG Midstream Jira board when board filtering, issue creation, comments, or lifecycle transitions are requested."
+description: "Inspect and manage Doug's INFERENG Midstream Jira board when board filtering, issue creation, comments, or lifecycle transitions are requested. Also covers SME label triage for the ms-* workstreams (ms-upstream, ms-omni, and the rest) — SME Backlog Prep, label cleanup, staffing queues, and epic categorization for the Midstream team's upstream and omni work."
 ---
 
 # Doug's Jira Board
