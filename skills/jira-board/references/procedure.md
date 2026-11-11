@@ -5,14 +5,38 @@ description: Pull up Doug's INFERENG Midstream kanban board, triage issues, crea
 
 # Doug's Jira Board Skill
 
-Interactive skill for working with Doug's INFERENG Midstream kanban board via the `jira` CLI. Covers board review, issue triage, creation, commenting, linking, transitions, and work planning.
+Interactive skill for working with Doug's INFERENG Midstream kanban board via
+the Atlassian CLI (`acli`). Covers board review, issue triage, creation,
+commenting, linking, transitions, and work planning. Ported from the retired
+go-jira procedure on 2026-11-11; all board-specific knowledge is preserved.
+
+The generic `acli` reference (command tables, ADF node catalog, INFERENG custom
+fields) lives in the team skill `~/.openclaw/workspace/skills/atlassian-jira/`.
+This file records what is specific to Doug's board on top of that.
+
+## CLI and Auth
+
+- `acli` lives at `~/.local/bin/acli` and is already authenticated (api_token)
+  at `https://redhat.atlassian.net` as `dosmith@redhat.com`.
+- Verify with `acli jira auth status` before a session's first mutation.
+- API tokens expire after ~3 months; if acli starts returning 401, re-auth is
+  needed (`acli jira auth login`, token from
+  https://id.atlassian.com/manage-profile/security/api-tokens).
+- **REST calls need `.bashrc` creds:** the Gateway process environment carries a
+  STALE `JIRA_API_TOKEN` (401s). Always run REST through a shell that sources
+  the valid pair:
+  `bash -c 'source ~/.bashrc; curl -s -u "$JIRA_USERNAME:$JIRA_API_TOKEN" ...'`
+- The old `jira` binary (go-jira 1.7.0, `/usr/local/bin/jira`) is vestigial.
+  Do not use it for board work anymore.
 
 ## Board Context
 
 - **Project:** INFERENG
 - **Board:** #2672 "INFERENG Midstream Team" (kanban, no sprints)
-- **Board filter:** component = `INFERENG Midstream` — this is critical. A plain `jira issue list` by assignee returns issues from ALL components across INFERENG, which is way more than what shows on the kanban board.
-- **User:** dosmith@redhat.com (`jira me` returns this)
+- **Board filter:** component = `INFERENG Midstream` — this is critical. A
+  plain assignee search returns issues from ALL components across INFERENG,
+  which is way more than what shows on the kanban board.
+- **User:** dosmith@redhat.com
 - **Jira instance:** https://redhat.atlassian.net
 
 ## Pulling Up the Board
@@ -21,144 +45,216 @@ Always filter by component to match what the kanban board actually shows:
 
 ```bash
 # In Progress — the active work column
-jira issue list --assignee "$(jira me)" -s "In Progress" \
-  -C "INFERENG Midstream" \
-  --plain --no-headers --columns KEY,STATUS,SUMMARY,PRIORITY
+acli jira workitem search \
+  --jql "project = INFERENG AND assignee = currentUser() AND status = 'In Progress' AND component = 'INFERENG Midstream'" \
+  --limit 20 --fields "key,issuetype,status,priority,summary"
 
 # Review column
-jira issue list --assignee "$(jira me)" -s "Review" \
-  -C "INFERENG Midstream" \
-  --plain --no-headers --columns KEY,STATUS,SUMMARY,PRIORITY
+acli jira workitem search \
+  --jql "project = INFERENG AND assignee = currentUser() AND status = 'Review' AND component = 'INFERENG Midstream'" \
+  --limit 20 --fields "key,issuetype,status,priority,summary"
 
-# New / backlog
-jira issue list --assignee "$(jira me)" -s "New" \
-  -C "INFERENG Midstream" \
-  --plain --no-headers --columns KEY,STATUS,SUMMARY,PRIORITY
+# New / backlog (the "To Do" board column maps to status Backlog)
+acli jira workitem search \
+  --jql "project = INFERENG AND assignee = currentUser() AND status = 'Backlog' AND component = 'INFERENG Midstream'" \
+  --limit 20 --fields "key,issuetype,status,priority,summary"
 ```
 
-Without `-C "INFERENG Midstream"`, you'll pull in issues from other teams' components (like "internal process" sub-tasks) that don't appear on Doug's board. Always use the component filter.
+Without `AND component = 'INFERENG Midstream'` in the JQL, you'll pull in
+issues from other teams' components that don't appear on Doug's board. Always
+use the component filter.
+
+Useful variants:
+
+```bash
+# Count only (sizing a column)
+acli jira workitem search \
+  --jql "project = INFERENG AND assignee = currentUser() AND status = 'New' AND component = 'INFERENG Midstream'" \
+  --count
+
+# JSON output for scripted processing
+acli jira workitem search --jql "..." --json --limit 50
+```
 
 ## Issue Types on This Board
 
 The board has a mix of:
-- **Epics** — long-running initiatives (e.g. "Midstream/CI-SIG: Phase 1", "Tooling for 0-day release", 0-day codename releases). These are ongoing umbrellas, not single-day items.
+
+- **Epics** — long-running initiatives (e.g. "Midstream/CI-SIG: Phase 1",
+  "Tooling for 0-day release", 0-day codename releases). These are ongoing
+  umbrellas, not single-day items.
 - **Stories** — concrete deliverables (e.g. "0-day build: DeepSeek V4")
 - **Bugs** — defects, often blockers (e.g. "[ROCm] vLLM fails to start with...")
 - **Sub-tasks** — children of stories/epics
 
-When reviewing the board, break things out by type so epics don't clutter the actionable work list. To check types, read the first line of `jira issue view <KEY> --plain` output.
+When reviewing the board, break things out by type so epics don't clutter the
+actionable work list. Include `issuetype` in `--fields` (it is in the default
+field set) or read it from the view output.
 
 ## Available Status Transitions
 
 Statuses on this board: `New`, `Backlog`, `In Progress`, `Review`, `Closed`
 
-The kanban board column labeled **"To Do"** maps to the Jira status `Backlog`. Use `-s "Backlog"` to query it.
+The kanban board column labeled **"To Do"** maps to the Jira status `Backlog`.
 
 ```bash
-# Move an issue
-jira issue move INFERENG-XXXX "In Progress"
-jira issue move INFERENG-XXXX "Closed"
+# Move an issue (no interactive picker; --yes skips confirmation)
+acli jira workitem transition --key INFERENG-XXXX --status "In Progress" --yes
+acli jira workitem transition --key INFERENG-XXXX --status "Closed" --yes
 
-# Query the "To Do" column
-jira issue list --assignee "$(jira me)" -s "Backlog" \
-  -C "INFERENG Midstream" \
-  --plain --no-headers --columns KEY,TYPE,STATUS,SUMMARY,PRIORITY
+# Bulk — comma-separated keys or JQL
+acli jira workitem transition --key "INFERENG-1111,INFERENG-2222" --status "Closed" --yes --ignore-errors
+acli jira workitem transition --jql "project = INFERENG AND component = 'INFERENG Midstream' AND key IN (INFERENG-1111, INFERENG-2222)" --status "Closed" --yes
 ```
 
-Note: the status name must match exactly — "Done" doesn't exist, use "Closed". "In Review" doesn't exist, use "Review". "To Do" doesn't exist as a status, use "Backlog". "Refinement" doesn't exist on this board.
+Note: the status name must match exactly — "Done" doesn't exist, use "Closed".
+"In Review" doesn't exist, use "Review". "To Do" doesn't exist as a status, use
+"Backlog". "Refinement" doesn't exist on this board.
+
+## Formatting: ADF, Not Markdown
+
+**Jira Cloud does not render Markdown or wiki markup.** `##`, `**bold**`,
+`- item`, and `| tables |` appear as literal characters in descriptions and
+comments. This is the opposite of the old go-jira convention (which
+auto-converted markdown).
+
+- Write descriptions and comments as **ADF JSON** and pass them via
+  `--description-file` / `--body-file`.
+- The ADF node/mark catalog with copy-paste-ready examples is in the team
+  skill: `~/.openclaw/workspace/skills/atlassian-jira/references/adf-format.md`.
+  Read it before authoring ADF for the first time in a session.
+- Validate JSON before sending:
+  `python3 -c 'import json,sys; json.load(open(sys.argv[1]))' file.json`
+- Only exception: a truly trivial one-liner with no headings, lists, tables,
+  code, links, or emphasis may use plain text.
 
 ## Creating Issues
 
-Use a temp file or heredoc for the description body. Never use `$'...\n...'` — it renders literal `\n` in Jira.
-
-Use **plain markdown** (not Jira wiki markup). The CLI converts markdown to ADF automatically. Use `###` headings, `**bold**`, `[text](url)` links, and standard markdown tables.
+Build a creation JSON file with summary, project, type, assignee, ADF
+description, and the board fields in `additionalAttributes`:
 
 ```bash
-# Write description to temp file
-cat > /tmp/jira-desc.md << 'EOF'
-## Background
-
-Description in plain markdown.
-
-## Plan
-
-1. Step one
-2. Step two
-
-| Column | Value |
-|--------|-------|
-| PR | [link text](https://github.com/...) |
+cat > /tmp/jira-create.json << 'EOF'
+{
+  "summary": "Summary here",
+  "projectKey": "INFERENG",
+  "type": "Story",
+  "assignee": "dosmith@redhat.com",
+  "parent": "INFERENG-9000",
+  "description": {
+    "type": "doc", "version": 1,
+    "content": [
+      {"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Background"}]},
+      {"type": "paragraph", "content": [{"type": "text", "text": "Description body."}]},
+      {"type": "paragraph", "content": [
+        {"type": "text", "text": "PR: "},
+        {"type": "text", "marks": [{"type": "link", "attrs": {"href": "https://github.com/org/repo/pull/1"}}], "text": "link text"}
+      ]}
+    ]
+  },
+  "additionalAttributes": {
+    "priority": {"name": "Major"},
+    "components": [{"name": "INFERENG Midstream"}],
+    "customfield_10001": "ec74d716-af36-4b3c-950f-f79213d08f71-1602"
+  }
+}
 EOF
 
-# Create the issue
-jira issue create \
-  -p INFERENG \
-  -t Bug \
-  -s "Summary here" \
-  -y Major \
-  -C "INFERENG Midstream" \
-  -a "dosmith@redhat.com" \
-  -T /tmp/jira-desc.md \
-  --no-input
+python3 -c 'import json; json.load(open("/tmp/jira-create.json"))'  # validate
+acli jira workitem create --from-json /tmp/jira-create.json
 ```
 
 Common issue types: `Bug`, `Story`, `Epic`, `Sub-task`
 Common priorities: `Blocker`, `Critical`, `Major`, `Normal`, `Minor`, `Undefined`
 
-Always assign to `dosmith@redhat.com` unless told otherwise. Always set component to `INFERENG Midstream` so it appears on the board.
+`additionalAttributes` is verified to set at create time (2026-11-11, live
+test): `priority`, `components`, and the team field `customfield_10001`.
+
+- Always assign to `dosmith@redhat.com` unless told otherwise.
+- Always set component `INFERENG Midstream` so it appears on the board.
+- Always set team `customfield_10001` to the INFERENG Midstream UUID above, or
+  the issue won't appear correctly on the kanban board.
+- `--parent "INFERENG-9000"` makes the issue a child of an epic at creation.
+  This is the correct epic-parenting mechanism — not issue links.
+
+**Verify after create:** `acli jira workitem view` does NOT return custom
+fields (priority, components, team all show as null even when set — verified
+2026-11-11). To prove component/team/priority stuck, check via REST:
+
+```bash
+bash -c 'source ~/.bashrc; curl -s -u "$JIRA_USERNAME:$JIRA_API_TOKEN" \
+  "https://redhat.atlassian.net/rest/api/3/issue/INFERENG-XXXX" \
+  | python3 -c "import json,sys; f=json.load(sys.stdin)[\"fields\"]; \
+     print(\"components:\", [c[\"name\"] for c in f.get(\"components\") or []]); \
+     print(\"priority:\", (f.get(\"priority\") or {}).get(\"name\")); \
+     print(\"team:\", (f.get(\"customfield_10001\") or {}).get(\"name\"))"'
+```
 
 ## Commenting
 
-Write comment body to a temp file first. Do NOT use inline heredocs with `jira issue comment add` — it hangs. The `-T` (template) flag reads from the file.
+Write the comment as ADF JSON in a temp file, then attach it:
 
 ```bash
-cat > /tmp/jira-comment.md << 'EOF'
-### Comment heading
-
-Comment body in plain markdown.
+cat > /tmp/jira-comment.json << 'EOF'
+{
+  "type": "doc", "version": 1,
+  "content": [
+    {"type": "heading", "attrs": {"level": 3}, "content": [{"type": "text", "text": "Comment heading"}]},
+    {"type": "paragraph", "content": [{"type": "text", "text": "Comment body."}]}
+  ]
+}
 EOF
 
-jira issue comment add INFERENG-XXXX -T /tmp/jira-comment.md --no-input
+acli jira workitem comment create --key INFERENG-XXXX --body-file /tmp/jira-comment.json
 ```
 
-## Epic Link (customfield_10014)
+`--edit-last` modifies the most recent comment by the same author (fix a
+mistaken comment instead of stacking a correction).
 
-To make an issue a **child** of an epic, set `customfield_10014` via REST. This is NOT the same as using `jira issue link` — link types like "Incorporates" create a regular link that won't show the issue as a child on the epic's board view.
+## Epic Link on Existing Issues
+
+At creation, use `--parent`. To re-parent an existing issue, REST is still the
+reliable path (verified pattern from the go-jira era; the parent relationship
+is stored in `customfield_10014` / the standard `parent` field):
 
 ```bash
-# Set epic link — makes INFERENG-XXXX a child of the epic
-curl -s -X PUT \
+bash -c 'source ~/.bashrc; curl -s -X PUT \
   -H "Content-Type: application/json" \
-  -u "${JIRA_USERNAME}:${JIRA_API_TOKEN}" \
+  -u "$JIRA_USERNAME:$JIRA_API_TOKEN" \
   "https://redhat.atlassian.net/rest/api/3/issue/INFERENG-XXXX" \
-  -d '{"fields":{"customfield_10014":"INFERENG-9000"}}'
+  -d "{\"fields\":{\"customfield_10014\":\"INFERENG-9000\"}}"'
 ```
 
-**Common mistake:** using `jira issue link INFERENG-XXXX INFERENG-9000 "Incorporates"` instead. That creates a visible link but does NOT set the epic parent. Always use the REST field.
-
-You can set this at creation time too, but the `jira` CLI doesn't support `--custom` for this field reliably, so always follow up with the REST call after `jira issue create`.
+**Common mistake:** using an issue link (`link create --type Incorporates`)
+instead. That creates a visible link but does NOT set the epic parent, so the
+issue won't show as a child on the epic's board view.
 
 ## Linking Issues
 
 ```bash
-# Available link types: Related, Blocks, Depend, Duplicate, Triggers, Causality,
-# Cloners, Document, Incorporates, Informs, Issue split
-jira issue link INFERENG-1111 INFERENG-2222 "Related"
-jira issue link INFERENG-1111 INFERENG-2222 "Blocks"
+# Discover available link types
+acli jira workitem link type
+
+# Create links (--out blocks/comes before --in for directional types)
+acli jira workitem link create --out INFERENG-1111 --in INFERENG-2222 --type "Related" --yes
+acli jira workitem link create --out INFERENG-1111 --in INFERENG-2222 --type "Blocks" --yes
 ```
 
 ## Reading Issues
 
 ```bash
 # Summary view
-jira issue view INFERENG-XXXX --plain
+acli jira workitem view INFERENG-XXXX
 
-# With comments (last N)
-jira issue view INFERENG-XXXX --comments 10
+# Subset of fields
+acli jira workitem view INFERENG-XXXX --fields summary,status,assignee,priority
 
-# Just the header line gives you type, status, assignee, priority
-jira issue view INFERENG-XXXX --plain 2>&1 | head -3
+# Machine-readable
+acli jira workitem view INFERENG-XXXX --json
 ```
+
+Remember: custom fields (component, team) don't appear in `view` output — use
+REST (pattern above) when you need them.
 
 ## Work Planning / Burn-Down Prep
 
@@ -172,62 +268,52 @@ When Doug asks for a work plan or standup prep:
 
 ## Bulk Operations
 
-For cleaning up stale tickets (e.g. old sub-tasks from other teams):
+For cleaning up stale tickets (e.g. old sub-tasks from other teams), transition
+in bulk:
 
 ```bash
-for ticket in INFERENG-1111 INFERENG-2222 INFERENG-3333; do
-  jira issue move "$ticket" "Closed"
-done
+acli jira workitem transition \
+  --jql "project = INFERENG AND component = 'INFERENG Midstream' AND key IN (INFERENG-1111, INFERENG-2222, INFERENG-3333)" \
+  --status "Closed" --yes --ignore-errors
 ```
+
+**There is no delete permission in INFERENG** (verified 2026-11-11:
+`acli jira workitem delete` fails with "You do not have permission to delete
+issues in this project"). Cleanup always means transitioning to `Closed`.
 
 ## Team Field (customfield_10001)
 
-The INFERENG team is stored in `customfield_10001`. The ID for INFERENG Midstream is `ec74d716-af36-4b3c-950f-f79213d08f71-1602`.
+The INFERENG team is stored in `customfield_10001`. The ID for INFERENG
+Midstream is `ec74d716-af36-4b3c-950f-f79213d08f71-1602`.
 
-**The `jira` CLI `--custom` flag does NOT work for this field.** It warns "not configured" and silently drops the value. Use the Jira REST API instead, immediately after creating every issue:
+- At create: put it in `additionalAttributes` (see Creating Issues).
+- On an existing issue: REST PUT is the reliable path:
 
 ```bash
-curl -s -X PUT \
+bash -c 'source ~/.bashrc; curl -s -X PUT \
   -H "Content-Type: application/json" \
-  -u "${JIRA_USERNAME}:${JIRA_API_TOKEN}" \
+  -u "$JIRA_USERNAME:$JIRA_API_TOKEN" \
   "https://redhat.atlassian.net/rest/api/3/issue/INFERENG-XXXX" \
-  -d '{"fields":{"customfield_10001":"ec74d716-af36-4b3c-950f-f79213d08f71-1602"}}'
+  -d "{\"fields\":{\"customfield_10001\":\"ec74d716-af36-4b3c-950f-f79213d08f71-1602\"}}"'
 ```
 
 Without this, issues won't appear correctly on the kanban board.
 
-## Changing Issue Status
-
-**Do NOT use `jira issue edit -s` to change status.** The `-s` flag on `edit` sets the **summary (title)**, not the status. It will silently overwrite the issue title with whatever you pass. This is a destructive footgun.
-
-`jira issue move` knows the right statuses but launches an interactive picker that hangs in non-interactive mode.
-
-**Use the REST transitions API instead:**
-
-```bash
-# Move an issue to Closed (transition ID 61)
-curl -s -X POST \
-  -H "Content-Type: application/json" \
-  -u "${JIRA_USERNAME}:${JIRA_API_TOKEN}" \
-  "https://redhat.atlassian.net/rest/api/3/issue/INFERENG-XXXX/transitions" \
-  -d '{"transition":{"id":"61"}}'
-
-# Transition IDs for this board:
-# 11: New
-# 21: Refinement
-# 31: Backlog
-# 41: In Progress
-# 51: Review
-# 61: Closed
-```
-
 ## Gotchas
 
-- **Run Jira mutations from the Gateway host shell and source `.bashrc`:** non-interactive host-shell commands do not automatically source `~/.bashrc`, where the Jira credential environment is initialized. Prefix Jira commands with `source "$HOME/.bashrc"` (for example, `bash -lc 'source "$HOME/.bashrc"; jira issue view INFERENG-XXXX --plain'`). Native/sandbox shells may not have the required credentials. Before mutating an issue, prove both identity and ticket visibility with `jira me` and `jira issue view INFERENG-XXXX --plain`. A successful `jira me` does not guarantee access to every ticket: a Jira 404 can still indicate a project/issue permission problem and must be reported rather than retried through another shell blindly.
-- **Jira CLI version:** must be v1.7.0+ — v1.6.0 uses a deprecated search API (`/rest/api/2/search`) that returns 410 Gone
-- **Component filter is essential:** without `-C "INFERENG Midstream"`, results include tickets from other components that aren't on the kanban board
-- **Status names are exact:** "Closed" not "Done", "Review" not "In Review"
-- **Markdown not wiki:** `[text](url)` not `[text|url]`, `###` not `h3.`
-- **No `-s "In Review"`:** the status is just `Review`
-- **Comments hang with heredocs:** always use temp file + `-T` flag
-- **`jira issue edit -s` is SUMMARY not STATUS:** it overwrites the title. Use REST transitions API to change status (see above)
+- **ADF not Markdown:** `##` and `**bold**` render as literal characters.
+  Descriptions and comments must be ADF JSON (see the team skill's
+  `adf-format.md` reference). This reverses the old go-jira convention.
+- **`acli jira workitem view` hides custom fields:** component/team/priority
+  show as null even when set. Verify via REST after create.
+- **No delete permission in INFERENG:** cleanup = transition to `Closed`.
+- **Component filter is essential:** without `AND component = 'INFERENG
+  Midstream'`, results include tickets from other components that aren't on
+  the kanban board.
+- **Status names are exact:** "Closed" not "Done", "Review" not "In Review",
+  "Backlog" not "To Do".
+- **Gateway env token is stale:** REST calls must run through
+  `bash -c 'source ~/.bashrc; ...'`. Bare exec-env `JIRA_API_TOKEN` 401s.
+- **acli auth is separate from go-jira:** acli stores its own api_token
+  (expires ~3 months). If acli 401s, re-auth with `acli jira auth login`.
+- **Validate every ADF JSON file** with python3 before sending it.

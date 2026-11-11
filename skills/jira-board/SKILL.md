@@ -7,7 +7,13 @@ description: "Inspect and manage Doug's INFERENG Midstream Jira board when board
 
 Read [the detailed procedure](references/procedure.md) completely before carrying
 out this workflow. It preserves the operational context, commands, and examples
-migrated from the former workspace.
+for Doug's board, built on the Atlassian CLI (`acli`).
+
+The generic `acli` command reference is the team skill
+`~/.openclaw/workspace/skills/atlassian-jira/` (auto-updated weekly from
+`rhaiis-midstream-snippets`; do not edit it locally). This skill is the
+INFERENG Midstream board overlay on top of it: component filters, status
+names, custom fields, and gotchas specific to Doug's board.
 
 Verify current repositories, branches, remote state, CLI behavior, tickets, and
 services before acting. Treat pinned versions, identifiers, hosts, and historical
