@@ -311,6 +311,17 @@ staffing help is needed — e.g. omni-upstream items get `ms-omni`, not
 `ms-upstream` — because the triage view groups by label and multi-labeling
 makes groups noisy.
 
+**Subject-matter ownership (2026-11-11 rules):**
+
+- "Omni wins for subject matter": omni work that was cut from the release
+  lane belongs in `ms-omni`, not `ms-release`.
+- **Exception — Tarun's items stay put:** anything Takumar (`takumar@redhat.com`)
+  created or is assigned keeps its lane (`ms-ci`, `ms-mv`, and his
+  `ms-release` items) — he is his own SME there. Check assignee AND creator
+  before moving anything between buckets.
+- Moving between buckets is two steps: `--labels "ms-new"` then
+  `--remove-labels "ms-old"` (see Label discovery and edits below).
+
 **Always scope label work to the team.** Every SME label query and every
 labeling action must include `AND component = 'INFERENG Midstream'`. Omni and
 upstream work owned by other teams (e.g. Alex Brooks' non-midstream omni
@@ -336,6 +347,29 @@ acli jira workitem search \
   requestable in `--fields`.
 - `labels` is NOT in the default search field set — request it explicitly in
   `--fields` or label data silently won't come back.
+
+### SME orchestration workflow (delegation prep)
+
+Doug's triage pattern as SME — getting work ready to hand off:
+
+1. Sort the working view: `ORDER BY status ASC, priority DESC, cf[10019] ASC`
+   — triage-ready first, priority-weighted.
+2. Pick items in `New` that Doug hasn't gotten to and won't do himself:
+   unassign them and transition them to `Backlog`. **Backlog + unassigned is
+   the delegation shelf** — the "ready for pickup" signal.
+
+```bash
+acli jira workitem edit --key INFERENG-XXXX --remove-assignee --yes
+acli jira workitem transition --key INFERENG-XXXX --status "Backlog" --yes
+```
+
+3. What stays with Doug: active Critical work, tracker/coordination stories
+   (they are orchestration artifacts, not work items), and
+   relationship-driven collaboration items.
+4. Delegation quality: strong delegates are crisp, bounded, and verifiable
+   (a fix, a build-and-validate, an automation with testable outcome).
+   "Evaluate"/"investigate" items need a definition pass first — either
+   sharpen the acceptance criteria or keep them parked.
 
 ### Label discovery and edits
 
@@ -376,6 +410,20 @@ acli jira workitem search \
 - **acli auth is separate from go-jira:** acli stores its own api_token
   (expires ~3 months). If acli 401s, re-auth with `acli jira auth login`.
 - **Validate every ADF JSON file** with python3 before sending it.
+- **INFERENG priority scheme has no "Low":** the rungs are Blocker, Critical,
+  Major, Normal, Minor, Undefined — Minor is the lowest. There is no acli
+  flag for priority; use REST PUT `{"fields":{"priority":{"name":"Minor"}}}`
+  (with the `.bashrc` creds shell).
+- **`parentIssueId` in create `--from-json` is broken** (rejected as both
+  string and integer). To parent at create: CLI flags `--parent KEY
+  --description-file <adf.json>`, then one REST PUT for component, team,
+  priority, and labels.
+- **acli `--fields` rejects `created`, `parent`, and `rank`.** Put date
+  predicates directly in the JQL instead (`created <= "2025-12-31"`), and
+  fetch epic children via `"Epic Link" = KEY` queries.
+- **REST `/rest/api/3/search` is removed** (410 Gone). The replacement
+  `/rest/api/3/search/jql` may reject payloads ("Invalid request payload"
+  even minimal); prefer acli search with JQL predicates.
 - **SME label work is component-scoped:** never label, triage, or close work
   outside `component = 'INFERENG Midstream'` — check the component first via
   REST (view hides it).
