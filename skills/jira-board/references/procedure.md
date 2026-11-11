@@ -347,11 +347,14 @@ acli jira workitem search \
   `acli jira workitem edit --key INFERENG-XXXX --labels "ms-omni" --yes`
 - **Remove a label:**
   `acli jira workitem edit --key INFERENG-XXXX --remove-labels "ms-omni" --yes`
+- **`--labels` APPENDS, it does not replace** (verified 2026-11-11 on acli
+  1.3.40: existing labels survive, including ms-* ones). Moving an item
+  between workstream buckets therefore takes two steps: `--labels "ms-new"`
+  then `--remove-labels "ms-old"`. Never assume a `--labels` call cleared
+  anything — verify with a search afterward.
 - **Bulk edit by JQL:**
   `acli jira workitem edit --jql "<query>" --labels "ms-omni" --yes --ignore-errors`
-  Bulk label edits replace the label set — verify what the target items
-  already carry before running, and prefer explicit `--key` lists over broad
-  JQL for anything destructive.
+  Prefer explicit `--key` lists over broad JQL for anything destructive.
 - Labels are also settable at create time via `additionalAttributes`
   (`"labels": ["ms-omni"]`).
 
