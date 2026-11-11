@@ -117,3 +117,9 @@ Do not commit credentials, tokens, private keys, `.env` files, secret-bearing
 logs, or copied source trees. Internal context may be appropriate; authentication
 material is not. Large generated output and raw meeting/log dumps should remain
 local unless distilled into useful durable knowledge.
+
+## GitLab DCO convention
+
+For GitLab work that uses central-linter, sign commits with `git commit -s` and
+include the same `Signed-off-by: Doug Smith <dosmith@redhat.com>` trailer in
+the merge-request description. The linter validates both independently.
