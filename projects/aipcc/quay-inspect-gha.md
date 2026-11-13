@@ -147,11 +147,11 @@ follows:
 | 1 | tag → platform manifest digest | shipped (`digest`) |
 | 2 | platform | shipped (input, default linux/amd64) |
 | 3 | labels incl. `com.redhat.aiplatform.index_url` | shipped (`inspect`) |
-| 4 | base image identity + its digest | ref ships via the `com.redhat.aiplatform.image` label (Containerfile LABEL); base **digest** resolution is a small add |
-| 5 | RPM inventory with el9/el9ai routing | data already captured (Clair report Features carry full version-release strings in the `cves` artifact); needs an extraction/classification op |
-| 6 | Python package inventory (vllm pins, hydra-core, FlashInfer trio) | not covered — Tier 3 exec-in-image or syft on a dind runner |
+| 4 | base image identity + its digest | implemented — `inspect` resolves the `com.redhat.aiplatform.image` label and its platform digest, with graceful fallback (PR #1691) |
+| 5 | RPM inventory with el9/el9ai routing | implemented — `rpm-inventory` op classifies Clair-report packages by errata route (PR #1691) |
+| 6 | Python package inventory (vllm pins, hydra-core, FlashInfer trio) | implemented — `python-packages` op via docker exec on a dind runner, key packages highlighted (PR #1691) |
 | 7 | Clair report for the digest | shipped (`cves`) |
-| 8 | vuln-mode trivy JSON for the same digest | gap — `trivy-scan.yml` is license-only |
+| 8 | vuln-mode trivy JSON for the same digest | implemented — `trivy-scan.yml` gains a `scanners` input (default `license`; `vuln` for the gate), PR #1691 |
 
 Planned improvements:
 
