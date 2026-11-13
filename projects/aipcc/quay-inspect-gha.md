@@ -136,3 +136,40 @@ Smoke-test the credential before writing YAML: confirm
 specific aipcc repo from a scratch GHA (or an existing dispatchable workflow
 extended with a step). The creds are proven for docker login + pull and for
 trivy; fresh skopeo inspect is expected but unproven.
+
+## Gap analysis vs. the 12102 wishlist (2026-11-13)
+
+A wishlist from the INFERENG-12102 CVE-gate session maps onto this work as
+follows:
+
+| # | Need | Status in PR #1691 |
+|---|------|--------------------|
+| 1 | tag → platform manifest digest | shipped (`digest`) |
+| 2 | platform | shipped (input, default linux/amd64) |
+| 3 | labels incl. `com.redhat.aiplatform.index_url` | shipped (`inspect`) |
+| 4 | base image identity + its digest | ref ships via the `com.redhat.aiplatform.image` label (Containerfile LABEL); base **digest** resolution is a small add |
+| 5 | RPM inventory with el9/el9ai routing | data already captured (Clair report Features carry full version-release strings in the `cves` artifact); needs an extraction/classification op |
+| 6 | Python package inventory (vllm pins, hydra-core, FlashInfer trio) | not covered — Tier 3 exec-in-image or syft on a dind runner |
+| 7 | Clair report for the digest | shipped (`cves`) |
+| 8 | vuln-mode trivy JSON for the same digest | gap — `trivy-scan.yml` is license-only |
+
+Planned improvements:
+
+- `image-report` composite op: one JSON per image chaining digest, labels,
+  base-image digest, Clair report, and RPM inventory with el9/el9ai
+  routing classification. All Tier 1/2 — no pull, hosted runner, seconds.
+- Extend `trivy-scan.yml` + its composite action with a `scanners` input
+  (default `license` preserves behavior; `vuln` for the gate) rather than
+  duplicating a trivy workflow. It already handles quay creds, runner
+  selection, and artifacts; the weakness is one hardcoded
+  `--scanners license` flag and a license-specific parse step.
+- The gate remains the union of fixable High/Critical from Clair (`cves`)
+  and trivy vuln mode, per the fix-cves doctrine. snyk stays as a third
+  view but scanned RPM-only in the 12102 round.
+
+Validation targets from the wishlist: primary
+`quay.io/aipcc/rhaiis-vllm-omni/cuda-ubi9:3.6.0-1794426856` (digest
+currently unknown — end-to-end proof), known-digest
+`3.6.0-1793738110@sha256:0c53...1553f`, and cross-variant
+`quay.io/aipcc/rhaiis/gaudi-ubi9:3.6.0-1793970331` (reproduce Willy's
+8-advisory numbers).
