@@ -44,17 +44,50 @@ Pulp publication and do not infer image delivery from a generated context lock.
 First determine which installer the live Containerfile uses.
 
 For the selected v0.30.0 Omni line, preserve the exact pair in every Fondue
-collection, container manifest, generated lock, and installed-image check:
+collection, container manifest, generated lock, and installed-image check.
+As of November 13, 2026 the line is:
 
 ```text
-vllm-omni==0.30.0+rhaiv.2
-vllm==0.30.0+rhaiv.0
+vllm-omni==0.30.0+rhaiv.3
+vllm==0.30.0+rhaiv.3   (tagged Nov 13; CVE remediation respin, INFERENG-12102)
 ```
 
 Renovate tracks these independently and can propose a mismatched pair. Reject
 or repair any update that drops the `+rhaiv.N` suffix or advances only one side.
 An October 2026 example proposed `vllm-omni==0.30.0` while retaining
 `vllm==0.26.0+rhaiv.10`; that is dependency discovery, not a releasable update.
+
+### Fondue respin pinning is exclusion-based (November 2026 finding)
+
+The fondue-side pinning for the 0.30 line is **not** an explicit pair pin —
+it is exclusion-based. In `builder/collections/torch-2.13.0/cuda13.0-el9.8/constraints.txt`:
+
+```text
+vllm>=0.28.0,<0.32.0,!=0.31.0+rhaiv.0,!=0.28.0+rhaiv.0
+vllm-omni!=0.30.0+rhaiv.0,!=0.30.0+rhaiv.1  # RHAI-10514: exclude broken tags
+```
+
+The builder's GitLabTagProvider (with the `+rhaiv.X` midstream matcher)
+picks the **newest non-excluded** tag from the mirror. Consequence: a new
+`+rhaiv.N` respin generally needs **no fondue pin MR** — only a fondue build
+run and Pulp test→production promotion. Per Doug Smith (November 13, 2026),
+fondue runs roughly **one wheel build per day, scheduled after working
+hours** — a tag pushed during the day should be picked up by that evening's
+run. If a respin has not appeared in the test channel by the following
+morning, verify with AIPCC (Pavan, author of the !1540 precedent; Daniele).
+
+Fondue internal layout relevant to omni (post-October restructure; older
+`-ubi9` paths 404 on `main`):
+
+```text
+builder/collections/torch-2.13.0/cuda13.0-el9.8/{requirements,constraints}.txt
+rhai-pipeline/collections/rhaiis/cuda13.0-el9.8/torch/requirements-torch-2.13.txt
+```
+
+The `rhai-pipeline` requirements file pins `vllm==0.30.0` (floating rhaiv
+suffix) in per-release-line sections. The standalone `rhaiis/pipeline` repo
+(`collections/vllm-omni/…`, last pinned 0.26.0) is legacy for this flow — do
+not open respin bumps there; see the note in its repo table above.
 
 ### Git transport for the containers attachment
 
@@ -112,6 +145,34 @@ glab api "projects/redhat%2Frhel-ai%2Frhaiis%2Fcontainers/pipelines/<PIPELINE_ID
 
 # Get job logs (tail)
 glab api "projects/redhat%2Frhel-ai%2Frhaiis%2Fcontainers/jobs/<JOB_ID>/trace" | tail -60
+```
+
+### Retrying a component build: the `/retest` comment command
+
+The Konflux-GitLab bridge supports slash commands posted as MR comments.
+The standard one retries a single component's on-pull-request run:
+
+```text
+/retest rhaiis-vllm-omni-cuda-ubi9-3-6-on-pull-request
+```
+
+`/retest all` fans out to every component. Component names are
+release-suffixed (e.g. `...-3-6-on-pull-request` for the 3.6 line) — check
+the component's `.tekton/` PipelineRun name or prior `/retest` usage on
+recent MRs for the exact string. Team usage precedent: dtrifiro-rh,
+deepak-kumar-neu, nselbi, wjhrdy, pavank63.
+
+Proven repair case (2026-11-16, !1683): a Konflux service-recovery
+incident withdrew an external status that had already failed a pipeline,
+leaving it orphaned-red — all GitLab jobs green, a pipeline-level retry a
+no-op (no failed jobs to retry), and a fresh branch pipeline rejected
+("would have been empty"). Posting the component `/retest` comment
+retriggered the on-pull-request run and re-reported the status, unblocking
+the CI-required auto-merge. Post it via:
+
+```bash
+glab mr note create <MR> --repo redhat/rhel-ai/rhaiis/containers \
+  --message "/retest rhaiis-vllm-omni-cuda-ubi9-3-6-on-pull-request"
 ```
 
 ## Containers Repo: File Layout

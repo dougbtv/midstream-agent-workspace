@@ -1,6 +1,28 @@
 # vLLM-Omni × AIPCC — Working Doc
 
-Status: **In Progress — constraints reconciliation** — updated 2026-07-22
+> **⚠️ STALE / LEGACY — superseded by the runbook.**
+>
+> The AIPCC wheel flow this doc describes has since migrated: the pipeline
+> was absorbed into the **fondue monorepo** (`redhat/rhel-ai/wheels/fondue`,
+> containing both `builder/collections/…` and the vendored
+> `rhai-pipeline/collections/…`), the variant directories were restructured
+> from `-ubi9` to `-el9.8` naming, and respin pinning became
+> **exclusion-based** rather than explicit-pair pinning. The standalone
+> `rhaiis/pipeline` repo — this doc's Layer 2 — is legacy for the current
+> flow.
+>
+> **For current operational procedure, use
+> [runbooks/aipcc/vllm-omni.md](../../runbooks/aipcc/vllm-omni.md)** —
+> reverified during the 3.6 GA `0.30.0` deliveries and updated November 13,
+> 2026 with the fondue layout, the exclusion-based constraint model, and the
+> current tag-to-image chain.
+>
+> This doc is retained as historical context: the four-layer architecture
+> narrative, the variant-vs-standalone analysis, the AIPCC-21515 version-
+> pairing background, and the contact roster. Do not follow its repository
+> layout or MR procedures for current work.
+
+Status: **Legacy — retained for historical context** — last verified 2026-07-22; marked stale 2026-11-13
 
 Companion to [MIDSTREAM_OMNI_BUILD.md](./MIDSTREAM_OMNI_BUILD.md) (build pipeline) and [OMNI_TECH_PREVIEW.md](./OMNI_TECH_PREVIEW.md) (TP scope).
 
