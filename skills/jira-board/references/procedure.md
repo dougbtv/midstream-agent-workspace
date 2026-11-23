@@ -111,27 +111,45 @@ Note: the status name must match exactly — "Done" doesn't exist, use "Closed".
 "In Review" doesn't exist, use "Review". "To Do" doesn't exist as a status, use
 "Backlog". "Refinement" doesn't exist on this board.
 
-## Formatting: ADF, Not Markdown
+## Formatting: Markdown → ADF conversion, never hand-written ADF
 
 **Jira Cloud does not render Markdown or wiki markup.** `##`, `**bold**`,
 `- item`, and `| tables |` appear as literal characters in descriptions and
-comments. This is the opposite of the old go-jira convention (which
-auto-converted markdown).
+comments. Content must be sent as ADF — but **author Markdown and convert it;
+do not hand-write ADF JSON** (policy adopted with the team skill, 2026-11-23;
+see the team skill `atlassian-jira` Formatting policy):
 
-- Write descriptions and comments as **ADF JSON** and pass them via
-  `--description-file` / `--body-file`.
-- The ADF node/mark catalog with copy-paste-ready examples is in the team
-  skill: `~/.openclaw/workspace/skills/atlassian-jira/references/adf-format.md`.
-  Read it before authoring ADF for the first time in a session.
-- Validate JSON before sending:
-  `python3 -c 'import json,sys; json.load(open(sys.argv[1]))' file.json`
+```bash
+cat > /tmp/jira-comment.md << 'EOF'
+### Heading
+
+Comment body with **bold**, a [link](https://example.com), and a list:
+
+- item one
+- item two
+EOF
+
+md-to-adf convert /tmp/jira-comment.md > /tmp/jira-comment.adf.json
+acli jira workitem comment create --key INFERENG-XXXX --body-file /tmp/jira-comment.adf.json
+```
+
+- `pip install --user md_to_adf` once if the `md-to-adf` CLI is missing.
+- Handles headings, bold/italic, links, inline code, bullet/ordered lists,
+  fenced code blocks (with language), and tables (verified 2026-11-23, v1.1.0).
+- Hand-author ADF only for converter-unsupported constructs (panels, decision
+  items, expand macros) using the team skill's `adf-format.md` catalog.
 - Only exception: a truly trivial one-liner with no headings, lists, tables,
   code, links, or emphasis may use plain text.
 
 ## Creating Issues
 
 Build a creation JSON file with summary, project, type, assignee, ADF
-description, and the board fields in `additionalAttributes`:
+description, and the board fields in `additionalAttributes`. Author the
+description as **Markdown** and convert it first
+(`md-to-adf convert /tmp/jira-desc.md > /tmp/jira-desc.adf.json`), then embed
+the converted object as `description` — build the payload with python
+(`json.load` the ADF file, set it as the `description` key, `json.dump` the
+payload). The shape below shows where it goes; do not hand-write the ADF:
 
 ```bash
 cat > /tmp/jira-create.json << 'EOF'
@@ -192,20 +210,18 @@ bash -c 'source ~/.bashrc; curl -s -u "$JIRA_USERNAME:$JIRA_API_TOKEN" \
 
 ## Commenting
 
-Write the comment as ADF JSON in a temp file, then attach it:
+Write the comment as Markdown, convert it, attach the ADF file (full flow in
+the Formatting section above):
 
 ```bash
-cat > /tmp/jira-comment.json << 'EOF'
-{
-  "type": "doc", "version": 1,
-  "content": [
-    {"type": "heading", "attrs": {"level": 3}, "content": [{"type": "text", "text": "Comment heading"}]},
-    {"type": "paragraph", "content": [{"type": "text", "text": "Comment body."}]}
-  ]
-}
+cat > /tmp/jira-comment.md << 'EOF'
+### Comment heading
+
+Comment body.
 EOF
 
-acli jira workitem comment create --key INFERENG-XXXX --body-file /tmp/jira-comment.json
+md-to-adf convert /tmp/jira-comment.md > /tmp/jira-comment.adf.json
+acli jira workitem comment create --key INFERENG-XXXX --body-file /tmp/jira-comment.adf.json
 ```
 
 `--edit-last` modifies the most recent comment by the same author (fix a
@@ -394,9 +410,10 @@ acli jira workitem transition --key INFERENG-XXXX --status "Backlog" --yes
 
 ## Gotchas
 
-- **ADF not Markdown:** `##` and `**bold**` render as literal characters.
-  Descriptions and comments must be ADF JSON (see the team skill's
-  `adf-format.md` reference). This reverses the old go-jira convention.
+- **ADF comes from conversion, not hand-authoring:** author Markdown and
+  convert with `md-to-adf` (see the team skill `atlassian-jira` Formatting
+  policy; its `adf-format.md` is the fallback catalog for
+  converter-unsupported constructs).
 - **`acli jira workitem view` hides custom fields:** component/team/priority
   show as null even when set. Verify via REST after create.
 - **No delete permission in INFERENG:** cleanup = transition to `Closed`.
@@ -409,7 +426,8 @@ acli jira workitem transition --key INFERENG-XXXX --status "Backlog" --yes
   `bash -c 'source ~/.bashrc; ...'`. Bare exec-env `JIRA_API_TOKEN` 401s.
 - **acli auth is separate from go-jira:** acli stores its own api_token
   (expires ~3 months). If acli 401s, re-auth with `acli jira auth login`.
-- **Validate every ADF JSON file** with python3 before sending it.
+- **Validate every hand-authored ADF JSON file** with python3 before sending
+  it (output of `md-to-adf` is already valid JSON).
 - **INFERENG priority scheme has no "Low":** the rungs are Blocker, Critical,
   Major, Normal, Minor, Undefined — Minor is the lowest. There is no acli
   flag for priority; use REST PUT `{"fields":{"priority":{"name":"Minor"}}}`
