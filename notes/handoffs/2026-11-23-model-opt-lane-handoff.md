@@ -61,6 +61,30 @@ finding was WRONG (namespace miss, corrected below).
 5. Rebuild only if validation or a real High/Critical finding identifies an
    image-content change that is actually required.
 
+## CVE validation dispatched 2026-11-23
+
+Both checks ran against the digest-pinned Model-opt candidate using nm-cicd
+PR #1691 branch `doug/INFERENG-12106-quay-inspect-impl`:
+
+- Quay/Clair `cves` run `45260415062` completed, but returned
+  `status: unsupported`; it produced no usable CVE report and is not green
+  evidence.
+- Trivy `vuln` run `45260420988` completed successfully and found **zero
+  Critical** but **14 fixable High package findings** across 12 unique CVEs:
+  `libXrender`, `python3`/`python3-libs`, `python3-urllib3`, `tesseract`, and
+  Python `setuptools`.
+- The exact private 3.5.7 base comparison was attempted with the same branch,
+  but both Quay (`45260976412`) and Trivy (`45260980634`) failed because the
+  workflow's Quay credentials cannot pull `aipcc/base-images/cuda-13.0-el9.6`.
+  Therefore inheritance from the base is strongly suggested for the RPM
+  findings but not yet proved by a like-for-like scan.
+
+**Disposition:** the candidate is not CVE-green on current evidence. Work with
+Dan to classify the findings, obtain a base-image comparison or newer base,
+and decide whether a Model-opt rebuild is required. Do not treat the successful
+GitHub workflow conclusion as a passing security gate; the report contents are
+the gate.
+
 ## Corrections to prior records
 
 - The 2026-11-23 epic comment on INFERENG-10471 says Model-opt "has no
