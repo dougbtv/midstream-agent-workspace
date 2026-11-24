@@ -129,13 +129,17 @@ Comment body with **bold**, a [link](https://example.com), and a list:
 - item two
 EOF
 
-md-to-adf convert /tmp/jira-comment.md > /tmp/jira-comment.adf.json
+python3 ~/.openclaw/workspace/skills/atlassian-jira/scripts/md_to_adf.py \
+  /tmp/jira-comment.md > /tmp/jira-comment.adf.json
 acli jira workitem comment create --key INFERENG-XXXX --body-file /tmp/jira-comment.adf.json
 ```
 
-- `pip install --user md_to_adf` once if the `md-to-adf` CLI is missing.
-- Handles headings, bold/italic, links, inline code, bullet/ordered lists,
-  fenced code blocks (with language), and tables (verified 2026-11-23, v1.1.0).
+- The converter is **vendored in the team skill** (`scripts/md_to_adf.py`),
+  stdlib-only Python 3 — no pip install, no network; it validates its output
+  and exits non-zero on invalid ADF.
+- Handles headings, bold/italic, links, inline code, bullet/ordered/task
+  lists, fenced code blocks (with language), tables, blockquotes, panels,
+  rules, and `<details>` expands (parity-verified 2026-11-24).
 - Hand-author ADF only for converter-unsupported constructs (panels, decision
   items, expand macros) using the team skill's `adf-format.md` catalog.
 - Only exception: a truly trivial one-liner with no headings, lists, tables,
@@ -146,7 +150,7 @@ acli jira workitem comment create --key INFERENG-XXXX --body-file /tmp/jira-comm
 Build a creation JSON file with summary, project, type, assignee, ADF
 description, and the board fields in `additionalAttributes`. Author the
 description as **Markdown** and convert it first
-(`md-to-adf convert /tmp/jira-desc.md > /tmp/jira-desc.adf.json`), then embed
+(vendored converter: `python3 ~/.openclaw/workspace/skills/atlassian-jira/scripts/md_to_adf.py /tmp/jira-desc.md > /tmp/jira-desc.adf.json`), then embed
 the converted object as `description` — build the payload with python
 (`json.load` the ADF file, set it as the `description` key, `json.dump` the
 payload). The shape below shows where it goes; do not hand-write the ADF:
@@ -220,7 +224,8 @@ cat > /tmp/jira-comment.md << 'EOF'
 Comment body.
 EOF
 
-md-to-adf convert /tmp/jira-comment.md > /tmp/jira-comment.adf.json
+python3 ~/.openclaw/workspace/skills/atlassian-jira/scripts/md_to_adf.py \
+  /tmp/jira-comment.md > /tmp/jira-comment.adf.json
 acli jira workitem comment create --key INFERENG-XXXX --body-file /tmp/jira-comment.adf.json
 ```
 
@@ -411,9 +416,9 @@ acli jira workitem transition --key INFERENG-XXXX --status "Backlog" --yes
 ## Gotchas
 
 - **ADF comes from conversion, not hand-authoring:** author Markdown and
-  convert with `md-to-adf` (see the team skill `atlassian-jira` Formatting
-  policy; its `adf-format.md` is the fallback catalog for
-  converter-unsupported constructs).
+  convert with the team skill's vendored `scripts/md_to_adf.py` (see the
+  `atlassian-jira` Formatting policy; its `adf-format.md` is the fallback
+  catalog for converter-unsupported constructs).
 - **`acli jira workitem view` hides custom fields:** component/team/priority
   show as null even when set. Verify via REST after create.
 - **No delete permission in INFERENG:** cleanup = transition to `Closed`.
@@ -427,7 +432,7 @@ acli jira workitem transition --key INFERENG-XXXX --status "Backlog" --yes
 - **acli auth is separate from go-jira:** acli stores its own api_token
   (expires ~3 months). If acli 401s, re-auth with `acli jira auth login`.
 - **Validate every hand-authored ADF JSON file** with python3 before sending
-  it (output of `md-to-adf` is already valid JSON).
+  it (vendored converter output is already validated).
 - **INFERENG priority scheme has no "Low":** the rungs are Blocker, Critical,
   Major, Normal, Minor, Undefined — Minor is the lowest. There is no acli
   flag for priority; use REST PUT `{"fields":{"priority":{"name":"Minor"}}}`
