@@ -1,6 +1,6 @@
 ---
 name: doug-jira
-description: Pull up Doug's INFERENG Midstream kanban board, triage issues, create/close/comment on Jira tickets, and plan work. Use when Doug asks to check his board, review in-progress work, create or close Jira issues, do standup prep, or plan a burn-down day. Triggers on mentions of "my board", "kanban", "jira", "in progress", "review", "standup", "burn down", or specific INFERENG ticket keys.
+description: Pull up Doug's INFERENG Midstream kanban board, triage issues, create/close/comment on Jira tickets, and plan work. Use when Doug asks to check his board, review in-progress work, create or close Jira issues, do standup prep, or plan a burn-down day. Triggers on mentions of "my board", "kanban", "jira", "in progress", "review", "standup", "burn down", or specific INFERENG/RHAI ticket keys.
 ---
 
 # Doug's Jira Board Skill
@@ -31,13 +31,47 @@ This file records what is specific to Doug's board on top of that.
 
 ## Board Context
 
-- **Project:** INFERENG
+- **Project:** RHAI (company-wide consolidation target; Midstream scope comes
+  from the component filter — see the migration section below)
 - **Board:** #2672 "INFERENG Midstream Team" (kanban, no sprints)
 - **Board filter:** component = `INFERENG Midstream` — this is critical. A
   plain assignee search returns issues from ALL components across INFERENG,
   which is way more than what shows on the kanban board.
 - **User:** dosmith@redhat.com
 - **Jira instance:** https://redhat.atlassian.net
+
+## Jira Project Migration: INFERENG → RHAI (Nov–Dec 2026)
+
+RHAI is consolidating Jira spaces; INFERENG is the last one scheduled for
+decommission. **RHAISTRAT** holds Outcomes/Features/Initiatives; **RHAI holds
+epics and below** — all Midstream work lands in RHAI.
+
+- **2026-11-27:** new items created in INFERENG are auto-moved to RHAI (with a
+  comment added).
+- **2026-12-04:** INFERENG closes to new issues; "relevant" items (open, or
+  closed Done / Done-Errata) are bulk-moved to RHAI/RHAISTRAT. The move may
+  take several days. Items closed with other resolutions (Won't Do, Duplicate,
+  …) stay archived in INFERENG — retrievable but difficult.
+- **Keys change** (`INFERENG-1234` → `RHAI-5678`). Old-key URLs redirect in the
+  browser, but do not assume old keys resolve via acli/REST after the move —
+  verify with a live lookup before trusting stored keys.
+- **Component `INFERENG Midstream` exists verbatim in RHAI** (verified
+  2026-11-25), so the board filter, creation payload, and SME component
+  scoping below keep working unchanged. The team field is org-level and
+  expected to survive; verify on the first post-migration ticket.
+- Board #2672's own survival/reconfiguration across the migration is
+  unverified — re-check after the bulk move. Questions: #forum-rhaicic.
+
+**Operating rules during the transition (from 2026-11-25 until the bulk move
+is confirmed complete):**
+
+1. **Create everything in RHAI** (`"projectKey": "RHAI"`). Never create in
+   INFERENG.
+2. **Query both projects:** `project IN (INFERENG, RHAI)` — existing INFERENG
+   items keep their old keys until the Dec 4 bulk move re-keys them.
+3. After the bulk move completes: flip queries to `project = RHAI` and
+   recapture stored key references (project maps, notes, template epics like
+   INFERENG-1857).
 
 ## Pulling Up the Board
 
@@ -46,17 +80,17 @@ Always filter by component to match what the kanban board actually shows:
 ```bash
 # In Progress — the active work column
 acli jira workitem search \
-  --jql "project = INFERENG AND assignee = currentUser() AND status = 'In Progress' AND component = 'INFERENG Midstream'" \
+  --jql "project IN (INFERENG, RHAI) AND assignee = currentUser() AND status = 'In Progress' AND component = 'INFERENG Midstream'" \
   --limit 20 --fields "key,issuetype,status,priority,summary"
 
 # Review column
 acli jira workitem search \
-  --jql "project = INFERENG AND assignee = currentUser() AND status = 'Review' AND component = 'INFERENG Midstream'" \
+  --jql "project IN (INFERENG, RHAI) AND assignee = currentUser() AND status = 'Review' AND component = 'INFERENG Midstream'" \
   --limit 20 --fields "key,issuetype,status,priority,summary"
 
 # New / backlog (the "To Do" board column maps to status Backlog)
 acli jira workitem search \
-  --jql "project = INFERENG AND assignee = currentUser() AND status = 'Backlog' AND component = 'INFERENG Midstream'" \
+  --jql "project IN (INFERENG, RHAI) AND assignee = currentUser() AND status = 'Backlog' AND component = 'INFERENG Midstream'" \
   --limit 20 --fields "key,issuetype,status,priority,summary"
 ```
 
@@ -69,7 +103,7 @@ Useful variants:
 ```bash
 # Count only (sizing a column)
 acli jira workitem search \
-  --jql "project = INFERENG AND assignee = currentUser() AND status = 'New' AND component = 'INFERENG Midstream'" \
+  --jql "project IN (INFERENG, RHAI) AND assignee = currentUser() AND status = 'New' AND component = 'INFERENG Midstream'" \
   --count
 
 # JSON output for scripted processing
@@ -104,7 +138,7 @@ acli jira workitem transition --key INFERENG-XXXX --status "Closed" --yes
 
 # Bulk — comma-separated keys or JQL
 acli jira workitem transition --key "INFERENG-1111,INFERENG-2222" --status "Closed" --yes --ignore-errors
-acli jira workitem transition --jql "project = INFERENG AND component = 'INFERENG Midstream' AND key IN (INFERENG-1111, INFERENG-2222)" --status "Closed" --yes
+acli jira workitem transition --jql "project IN (INFERENG, RHAI) AND component = 'INFERENG Midstream' AND key IN (INFERENG-1111, INFERENG-2222)" --status "Closed" --yes
 ```
 
 Note: the status name must match exactly — "Done" doesn't exist, use "Closed".
@@ -159,10 +193,10 @@ payload). The shape below shows where it goes; do not hand-write the ADF:
 cat > /tmp/jira-create.json << 'EOF'
 {
   "summary": "Summary here",
-  "projectKey": "INFERENG",
+  "projectKey": "RHAI",
   "type": "Story",
   "assignee": "dosmith@redhat.com",
-  "parent": "INFERENG-9000",
+  "parent": "RHAI-9000",
   "description": {
     "type": "doc", "version": 1,
     "content": [
@@ -294,7 +328,7 @@ in bulk:
 
 ```bash
 acli jira workitem transition \
-  --jql "project = INFERENG AND component = 'INFERENG Midstream' AND key IN (INFERENG-1111, INFERENG-2222, INFERENG-3333)" \
+  --jql "project IN (INFERENG, RHAI) AND component = 'INFERENG Midstream' AND key IN (INFERENG-1111, INFERENG-2222, INFERENG-3333)" \
   --status "Closed" --yes --ignore-errors
 ```
 
@@ -359,7 +393,7 @@ of Closed items; triage queries should always carry `AND status not in
 ```bash
 # Items needing assignment — what to bring to "SME Backlog Prep"
 acli jira workitem search \
-  --jql "project = INFERENG AND labels in (ms-upstream, ms-omni) AND component = 'INFERENG Midstream' AND status in (New, Backlog) AND assignee is EMPTY ORDER BY rank ASC" \
+  --jql "project IN (INFERENG, RHAI) AND labels in (ms-upstream, ms-omni) AND component = 'INFERENG Midstream' AND status in (New, Backlog) AND assignee is EMPTY ORDER BY rank ASC" \
   --limit 50 --fields "key,issuetype,status,priority,summary,labels"
 ```
 
@@ -450,3 +484,6 @@ acli jira workitem transition --key INFERENG-XXXX --status "Backlog" --yes
 - **SME label work is component-scoped:** never label, triage, or close work
   outside `component = 'INFERENG Midstream'` — check the component first via
   REST (view hides it).
+- **INFERENG keys are legacy (2026 migration):** old-key links redirect in the
+  browser, but acli/REST lookups by old key can fail after the bulk move —
+  verify live before trusting stored keys in notes or maps.
